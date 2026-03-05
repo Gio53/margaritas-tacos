@@ -1,0 +1,65 @@
+[
+  {
+    "id": "order-1772672361252-wipjt1e",
+    "status": "completed",
+    "customer": {
+      "firstName": "Gio",
+      "lastName": "Rios",
+      "email": "riosgianmarco@gmail.com",
+      "phone": "5167650736"
+    },
+    "items": [
+      {
+        "categoryName": "Mexican Street Tacos",
+        "itemName": "Grilled Chicken",
+        "quantity": 1,
+        "removeIngredients": [
+          "Guacamole"
+        ],
+        "addExtras": [
+          {
+            "name": "Sour Cream",
+            "price": 2
+          }
+        ],
+        "lineTotal": 7
+      },
+      {
+        "categoryName": "Nachos",
+        "itemName": "Ground Beef",
+        "quantity": 1,
+        "removeIngredients": [
+          "Pico de gallo"
+        ],
+        "addExtras": [
+          {
+            "name": "Sour Cream",
+            "price": 2
+          }
+        ],
+        "lineTotal": 15
+      },
+      {
+        "categoryName": "Enchiladas",
+        "itemName": "Steak (Top Sirloin)",
+        "quantity": 1,
+        "removeIngredients": [
+          "Rice & beans"
+        ],
+        "addExtras": [
+          {
+            "name": "Guacamole",
+            "price": 2
+          }
+        ],
+        "lineTotal": 17
+      }
+    ],
+    "subtotal": 39,
+    "tax": 3.4612499999999997,
+    "total": 42.46125,
+    "pickupAddress": "4549 Austin Blvd, Island Park, NY",
+    "paymentMethod": "card",
+    "createdAt": 1772672361252
+  }
+]

@@ -1,0 +1,17 @@
+# Render Blueprint — run build/start from repo root (where package.json lives).
+# See https://render.com/docs/blueprint-spec
+#
+# To use: Push this file to GitHub, then in Render use "New" → "Blueprint"
+# and connect your repo. Render will create/update the service from this file.
+# Add Clover + Twilio env vars in the Render dashboard after the service exists.
+services:
+  - type: web
+    name: margaritas-orders-api
+    runtime: node
+    buildCommand: npm run build:server
+    startCommand: node dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_ONLY
+        value: "true"

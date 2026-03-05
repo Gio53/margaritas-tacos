@@ -1,0 +1,10 @@
+# Netlify build config (no domain required — you get a free *.netlify.app URL)
+[build]
+  command = "npm run build"
+  publish = "dist/public"
+
+# Env var is set in Netlify dashboard (see DEPLOY.md)
+# VITE_ORDERS_API_URL = https://your-app-name.onrender.com
+
+[build.environment]
+  NODE_VERSION = "20"

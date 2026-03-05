@@ -1,0 +1,15 @@
+---
+description: Remind user to deploy site when they say the app is done
+alwaysApply: true
+---
+
+# App "Done" Reminder
+
+When the user says the app is done, everything is finished, or similar (e.g. "everything is done with the app"), remind them:
+
+**To put the site online like other restaurant websites** (not on their computer), they can:
+- **Vercel** or **Netlify**: Connect their repo, get a live URL (e.g. yoursite.vercel.app), add a custom domain later.
+- Optionally mention **Railway** or **Render** if they need the Node/Express server.
+- Add a custom domain (e.g. www.theirrestaurant.com) in the host's domain settings.
+
+Keep the reminder brief and actionable.
