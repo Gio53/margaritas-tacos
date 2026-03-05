@@ -120,16 +120,16 @@ A place that runs your **server** (backend) on the internet 24/7. When a custome
    - **Start Command:** type exactly: `node dist/index.js`
 5. Before you click **Create**, scroll to **Environment Variables** (or find it after creating the service). Click **Add Environment Variable** and add these **one by one** (use the exact names; values are what you copied earlier):
 
-   | Key (name)              | Value (your actual value)                          |
-   |-------------------------|----------------------------------------------------|
-   | `NODE_ENV`              | `production`                                       |
-   | `API_ONLY`              | `true`                                             |
-   | `CLOVER_SANDBOX`        | `false`                                            |
-   | `CLOVER_ACCESS_TOKEN`   | your Clover **private** token                      |
-   | `CLOVER_ECOM_API_KEY`   | your Clover **public** token                       |
-   | `TWILIO_ACCOUNT_SID`    | your Twilio Account SID                            |
-   | `TWILIO_AUTH_TOKEN`     | your Twilio Auth Token                             |
-   | `TWILIO_PHONE_NUMBER`   | your Twilio number, e.g. `+15165551234`             |
+   | Key (name)                  | Value (your actual value)                          |
+   |-----------------------------|----------------------------------------------------|
+   | `NODE_ENV`                  | `production`                                       |
+   | `API_ONLY`                  | `true`                                             |
+   | `CLOVER_SANDBOX`            | `false`                                            |
+   | `CLOVER_ACCESS_TOKEN`       | your Clover **private** token                      |
+   | `CLOVER_ECOM_API_KEY`       | your Clover **public** token                       |
+   | `TWILIO_ACCOUNT_SID`        | your Twilio Account SID                            |
+   | `TWILIO_AUTH_TOKEN`         | your Twilio Auth Token                             |
+   | `TWILIO_PHONE_NUMBER`       | your Twilio number, e.g. `+15165551234`            |
 
    Don’t add quotes around the values. No spaces at the start or end.
 
