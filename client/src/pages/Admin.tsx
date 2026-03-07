@@ -9,7 +9,7 @@ import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra } from "@/data/orderOptions";
 import { ClipboardList, Printer } from "lucide-react";
-import KitchenTicket from "@/components/KitchenTicket";
+import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 
 const ADMIN_SESSION_KEY = "margaritas_admin";
 const ADMIN_PASSWORD = "2022";
@@ -66,6 +66,20 @@ function OrderCard({
   onStatusChange: (id: string, status: OrderStatus) => void;
   onPrintTicket: (order: PlacedOrder) => void;
 }) {
+  const handlePrint = () => {
+    const html = getTicketPrintHtml(order);
+    const w = window.open("", "_blank", "width=300,height=500");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => {
+        w.focus();
+        w.print();
+        w.afterprint = () => w.close();
+      }, 200);
+    }
+    onPrintTicket(order);
+  };
   return (
     <div
       className="rounded-xl border p-4 bg-white"
@@ -140,7 +154,7 @@ function OrderCard({
       <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t" style={{ borderColor: "rgba(44,24,16,0.1)" }}>
         <button
           type="button"
-          onClick={() => onPrintTicket(order)}
+          onClick={handlePrint}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border"
           style={{ borderColor: ESPRESSO, color: ESPRESSO }}
         >
@@ -192,13 +206,6 @@ export default function Admin() {
     isLoading,
     useApi,
   } = useOrders();
-
-  useEffect(() => {
-    if (orderToPrint) {
-      const t = setTimeout(() => window.print(), 150);
-      return () => clearTimeout(t);
-    }
-  }, [orderToPrint]);
 
   // Only show orders from today (from 12:00 AM local time); dateTick updates at midnight
   const [dateTick, setDateTick] = useState(() => new Date().toDateString());
@@ -434,7 +441,19 @@ export default function Admin() {
             <div className="print-ticket-actions flex flex-wrap gap-2 p-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  const html = getTicketPrintHtml(orderToPrint);
+                  const w = window.open("", "_blank", "width=300,height=500");
+                  if (w) {
+                    w.document.write(html);
+                    w.document.close();
+                    setTimeout(() => {
+                      w.focus();
+                      w.print();
+                      w.afterprint = () => w.close();
+                    }, 200);
+                  }
+                }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-white"
                 style={{ backgroundColor: ESPRESSO }}
               >

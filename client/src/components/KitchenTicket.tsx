@@ -14,6 +14,38 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString();
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** Standalone HTML for receipt — print in a new window so only one page feeds (no extra paper) */
+export function getTicketPrintHtml(order: PlacedOrder): string {
+  const orderId = order.id.replace(/^order-/, "").slice(0, 12).toUpperCase();
+  const dateStr = formatDate(order.createdAt);
+  const timeStr = formatTime(order.createdAt);
+  const customerPhone = order.customer.phone || "—";
+  const itemsHtml = order.items
+    .map(
+      (line) =>
+        `<div style="margin-bottom: 0.75rem; font-size: 14px;">
+          <p style="font-weight: bold; margin: 0 0 2px 0;">${line.quantity}× ${escapeHtml(line.categoryName)} — ${escapeHtml(line.itemName)}</p>
+          ${line.removeIngredients.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0 0 2px 0;">NO: ${escapeHtml(line.removeIngredients.join(", "))}</p>` : ""}
+          ${line.addExtras.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0;">Add: ${escapeHtml(line.addExtras.map(formatAddExtra).join(", "))}</p>` : ""}
+        </div>`
+    )
+    .join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Ticket</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:sans-serif;padding:8px;width:72mm;max-width:72mm}h1{font-size:18px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}.meta{font-size:14px;margin-bottom:12px}.customer{border-top:1px solid #000;padding-top:8px;margin-bottom:12px;font-size:14px}.customer p{margin-bottom:2px}.total{border-top:2px solid #000;margin-top:12px;padding-top:8px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between}.pickup{font-size:12px;color:#374151;margin-top:8px}</style>
+</head><body>
+<h1>MARGARITAS TACOS — KITCHEN TICKET</h1>
+<div class="meta"><p><strong>Order #${escapeHtml(orderId)}</strong></p><p>${escapeHtml(dateStr)} · ${timeStr}</p></div>
+<div class="customer"><p><strong>${escapeHtml(order.customer.firstName)} ${escapeHtml(order.customer.lastName)}</strong></p><p>${escapeHtml(customerPhone)}</p></div>
+<div class="items">${itemsHtml}</div>
+<div class="total"><span>TOTAL</span><span>$${order.total.toFixed(2)}</span></div>
+<p class="pickup">Pickup: ${escapeHtml(order.pickupAddress)}</p>
+</body></html>`;
+}
+
 export default function KitchenTicket({ order }: { order: PlacedOrder }) {
   return (
     <>
@@ -71,8 +103,8 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
             position: fixed !important;
             left: 0 !important;
             top: 0 !important;
-            width: 80mm !important;
-            max-width: 80mm !important;
+            width: 72mm !important;
+            max-width: 72mm !important;
             margin: 0 !important;
             padding: 0.5rem !important;
             box-shadow: none !important;
