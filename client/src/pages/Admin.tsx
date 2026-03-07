@@ -22,15 +22,17 @@ const READY_COLOR = "#16A34A";
 const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
 
-/** Play a short chime (Web Audio API) when a new order arrives */
-function playNewOrderChime() {
+/** Play a short chime (Web Audio API) when a new order arrives. Pass a context resumed after user gesture so browsers allow sound. */
+function playNewOrderChime(ctx: AudioContext | null | undefined) {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const audioContext = ctx && ctx.state !== "closed"
+      ? ctx
+      : new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     const playTone = (freq: number, startTime: number, duration: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(audioContext.destination);
       osc.frequency.value = freq;
       osc.type = "sine";
       gain.gain.setValueAtTime(0, startTime);
@@ -40,7 +42,7 @@ function playNewOrderChime() {
       osc.stop(startTime + duration);
     };
     playTone(523.25, 0, 0.2);       // C5
-    playTone(659.25, 0.15, 0.25);    // E5
+    playTone(659.25, 0.15, 0.25);   // E5
     playTone(783.99, 0.3, 0.35);    // G5
   } catch {
     // ignore if AudioContext not supported or blocked
@@ -234,6 +236,34 @@ export default function Admin() {
 
   /** Track which order IDs we've already seen — used to detect new orders for auto-print */
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  /** AudioContext resumed on login (user gesture) so chime can play when new order arrives */
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioUnlockAttemptedRef = useRef(false);
+
+  // If already logged in, unlock audio on first click anywhere (so chime works after refresh)
+  useEffect(() => {
+    if (!authenticated || audioUnlockAttemptedRef.current) return;
+    const unlock = () => {
+      audioUnlockAttemptedRef.current = true;
+      try {
+        if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+          const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+          audioContextRef.current = ctx;
+          ctx.resume();
+        }
+      } catch {
+        // ignore
+      }
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("keydown", unlock);
+    };
+    document.addEventListener("click", unlock, { once: true });
+    document.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("keydown", unlock);
+    };
+  }, [authenticated]);
 
   /** Open the receipt in a new window and trigger print (same as "Print ticket" button) */
   const openTicketPrintWindow = (order: PlacedOrder) => {
@@ -265,7 +295,7 @@ export default function Admin() {
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
     const newest = newPending.sort((a, b) => b.createdAt - a.createdAt)[0];
-    playNewOrderChime();
+    playNewOrderChime(audioContextRef.current);
     openTicketPrintWindow(newest);
   }, [orders, useApi]);
 
@@ -312,6 +342,14 @@ export default function Admin() {
       setAuthenticated(true);
       setPasswordError("");
       setPasswordInput("");
+      // Resume an AudioContext on this user gesture so the new-order chime can play later
+      try {
+        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        audioContextRef.current = ctx;
+        ctx.resume();
+      } catch {
+        audioContextRef.current = null;
+      }
     } else {
       setPasswordError("Wrong password");
     }
@@ -320,6 +358,7 @@ export default function Admin() {
   const logout = () => {
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setAuthenticated(false);
+    audioUnlockAttemptedRef.current = false;
   };
 
   if (!authenticated) {
