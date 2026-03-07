@@ -306,6 +306,18 @@ export default function Admin() {
   const [testCloverResult, setTestCloverResult] = useState<{ success: boolean; cloverOrderId?: string; error?: string } | null>(null);
   const [retryMessage, setRetryMessage] = useState<{ orderId: string; success: boolean; error?: string } | null>(null);
 
+  const {
+    orders,
+    setOrderStatus,
+    pendingCount,
+    readyCount,
+    completedCount,
+    totalCount,
+    isLoading,
+    useApi,
+    refreshOrders,
+  } = useOrders();
+
   const handleRetryClover = useCallback(
     async (id: string) => {
       if (!API_BASE) return;
@@ -351,18 +363,6 @@ export default function Admin() {
   useEffect(() => {
     setAuthenticated(sessionStorage.getItem(ADMIN_SESSION_KEY) === "true");
   }, []);
-
-  const {
-    orders,
-    setOrderStatus,
-    pendingCount,
-    readyCount,
-    completedCount,
-    totalCount,
-    isLoading,
-    useApi,
-    refreshOrders,
-  } = useOrders();
 
   /** Track which order IDs we've already seen — used to detect new orders for auto-print */
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
