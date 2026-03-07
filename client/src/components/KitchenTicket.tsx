@@ -52,17 +52,32 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
       </div>
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          .kitchen-ticket, .kitchen-ticket * { visibility: visible; }
+          /* Prevent extra pages: only one page of content */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+          }
+          @page {
+            size: auto;
+            margin: 12mm;
+          }
+          /* Hide everything except the ticket */
+          body * { visibility: hidden !important; }
+          .kitchen-ticket, .kitchen-ticket * { visibility: visible !important; }
           .kitchen-ticket {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 100%;
-            max-width: 100%;
-            margin: 0;
-            padding: 1rem;
-            box-shadow: none;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            margin: 0 !important;
+            padding: 0.5rem !important;
+            box-shadow: none !important;
+            background: white !important;
+            page-break-inside: avoid !important;
           }
           .print-ticket-actions { display: none !important; }
         }
