@@ -442,6 +442,7 @@ export default function Home() {
               <p>© {new Date().getFullYear()} Margaritas Tacos.</p>
               <p className="mt-1">All rights reserved.</p>
               <Link href="/admin" className="block mt-2 text-[#E8A838] hover:underline font-semibold">Order management</Link>
+              <Link href="/test-order" className="block mt-1 text-[#E8A838] hover:underline font-semibold">Test order</Link>
             </div>
           </div>
         </div>

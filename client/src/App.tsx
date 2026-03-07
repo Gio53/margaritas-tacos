@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Order from "./pages/Order";
 import Checkout from "./pages/Checkout";
 import Admin from "./pages/Admin";
+import TestOrder from "./pages/TestOrder";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path={"/order"} component={Order} />
       <Route path={"/checkout"} component={Checkout} />
       <Route path={"/admin"} component={Admin} />
+      <Route path={"/test-order"} component={TestOrder} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
