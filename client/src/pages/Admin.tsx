@@ -3,7 +3,7 @@
 // Password gate: 2022 (sessionStorage; change ADMIN_PASSWORD to update)
 // ============================================================
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "wouter";
 import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
@@ -21,6 +21,31 @@ const PENDING_COLOR = "#DC2626";
 const READY_COLOR = "#16A34A";
 const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
+
+/** Play a short chime (Web Audio API) when a new order arrives */
+function playNewOrderChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const playTone = (freq: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    playTone(523.25, 0, 0.2);       // C5
+    playTone(659.25, 0.15, 0.25);    // E5
+    playTone(783.99, 0.3, 0.35);    // G5
+  } catch {
+    // ignore if AudioContext not supported or blocked
+  }
+}
 
 function formatTime(ts: number) {
   const d = new Date(ts);
@@ -206,6 +231,43 @@ export default function Admin() {
     isLoading,
     useApi,
   } = useOrders();
+
+  /** Track which order IDs we've already seen — used to detect new orders for auto-print */
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+
+  /** Open the receipt in a new window and trigger print (same as "Print ticket" button) */
+  const openTicketPrintWindow = (order: PlacedOrder) => {
+    const html = getTicketPrintHtml(order);
+    const w = window.open("", "_blank", "width=300,height=500");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => {
+        w.focus();
+        w.print();
+        w.afterprint = () => w.close();
+      }, 200);
+    }
+  };
+
+  // Auto-print when a new pending order appears (from API polling)
+  useEffect(() => {
+    if (!useApi || orders.length === 0) return;
+    const currentIds = new Set(orders.map((o) => o.id));
+    if (knownOrderIdsRef.current.size === 0) {
+      knownOrderIdsRef.current = new Set(currentIds);
+      return;
+    }
+    const newIds = [...currentIds].filter((id) => !knownOrderIdsRef.current.has(id));
+    knownOrderIdsRef.current = currentIds;
+    if (newIds.length === 0) return;
+    const newOrders = orders.filter((o) => newIds.includes(o.id));
+    const newPending = newOrders.filter((o) => o.status === "pending");
+    if (newPending.length === 0) return;
+    const newest = newPending.sort((a, b) => b.createdAt - a.createdAt)[0];
+    playNewOrderChime();
+    openTicketPrintWindow(newest);
+  }, [orders, useApi]);
 
   // Only show orders from today (from 12:00 AM local time); dateTick updates at midnight
   const [dateTick, setDateTick] = useState(() => new Date().toDateString());
