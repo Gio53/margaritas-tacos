@@ -35,7 +35,18 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
     )
     .join("");
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Ticket</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:sans-serif;padding:8px;width:72mm;max-width:72mm}h1{font-size:18px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}.meta{font-size:14px;margin-bottom:12px}.customer{border-top:1px solid #000;padding-top:8px;margin-bottom:12px;font-size:14px}.customer p{margin-bottom:2px}.total{border-top:2px solid #000;margin-top:12px;padding-top:8px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between}.pickup{font-size:12px;color:#374151;margin-top:8px}</style>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+@page{margin:0;size:72mm auto}
+html,body{margin:0;padding:0;background:#fff}
+body{font-family:sans-serif;padding:4px 8px 8px;width:72mm;max-width:72mm}
+h1{font-size:18px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+.meta{font-size:14px;margin-bottom:12px}
+.customer{border-top:1px solid #000;padding-top:8px;margin-bottom:12px;font-size:14px}
+.customer p{margin-bottom:2px}
+.total{border-top:2px solid #000;margin-top:12px;padding-top:8px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between}
+.pickup{font-size:12px;color:#374151;margin-top:8px}
+</style>
 </head><body>
 <h1>MARGARITAS TACOS — KITCHEN TICKET</h1>
 <div class="meta"><p><strong>Order #${escapeHtml(orderId)}</strong></p><p>${escapeHtml(dateStr)} · ${timeStr}</p></div>
