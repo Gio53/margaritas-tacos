@@ -315,10 +315,9 @@ export default function Admin() {
     const newOrders = orders.filter((o) => newIds.includes(o.id));
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
-    const newest = newPending.sort((a, b) => b.createdAt - a.createdAt)[0];
     stopAlarmRef.current?.();
     stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
-    openTicketPrintWindow(newest);
+    // No auto-print — alarm plays until user clicks "Print ticket" (avoids popup interfering with sound)
   }, [orders, useApi]);
 
   const stopNewOrderAlarm = () => {
@@ -574,19 +573,7 @@ export default function Admin() {
             <div className="print-ticket-actions flex flex-wrap gap-2 p-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => {
-                  const html = getTicketPrintHtml(orderToPrint);
-                  const w = window.open("", "_blank", "width=300,height=500");
-                  if (w) {
-                    w.document.write(html);
-                    w.document.close();
-                    setTimeout(() => {
-                      w.focus();
-                      w.print();
-                      w.afterprint = () => w.close();
-                    }, 200);
-                  }
-                }}
+                onClick={() => openTicketPrintWindow(orderToPrint)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-white"
                 style={{ backgroundColor: ESPRESSO }}
               >
