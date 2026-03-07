@@ -99,6 +99,18 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     loadOrders();
   }, [loadOrders]);
 
+  // When using API: poll for new orders every 15s and refresh when window regains focus
+  useEffect(() => {
+    if (!API_BASE) return;
+    const interval = setInterval(loadOrders, 15_000);
+    const onFocus = () => loadOrders();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [API_BASE, loadOrders]);
+
   // Persist to localStorage only when not using API
   useEffect(() => {
     if (!API_BASE && orders.length > 0) saveOrdersLocal(orders);

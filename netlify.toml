@@ -3,6 +3,12 @@
   command = "npm run build"
   publish = "dist/public"
 
+# SPA: serve index.html for all routes so /admin, /order, etc. don't 404
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 # Env var is set in Netlify dashboard (see DEPLOY.md)
 # VITE_ORDERS_API_URL = https://your-app-name.onrender.com
 

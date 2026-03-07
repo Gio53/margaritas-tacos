@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getOrderOptionsForCategory } from "@/data/orderOptions";
 import type { MenuItem } from "@/data/menuData";
 import type { OrderExtra } from "@/data/orderOptions";
-import { useCart } from "@/contexts/CartContext";
+import { useCart, computeLineTotal } from "@/contexts/CartContext";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,7 +68,7 @@ export function CustomizeModal({
     () => addExtras.reduce((s, e) => s + e.price, 0),
     [addExtras]
   );
-  const lineTotal = (item.price + extrasTotal) * quantity;
+  const lineTotal = computeLineTotal(item.price, quantity, addExtras, categoryId);
 
   const handleAddToCart = () => {
     addItem({

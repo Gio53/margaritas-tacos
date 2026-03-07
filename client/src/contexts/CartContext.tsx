@@ -34,12 +34,17 @@ function generateId(): string {
   return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function computeLineTotal(
+export function computeLineTotal(
   basePrice: number,
   quantity: number,
-  addExtras: OrderExtra[]
+  addExtras: OrderExtra[],
+  categoryId?: string
 ): number {
   const extrasTotal = addExtras.reduce((s, e) => s + e.price, 0);
+  // Mexican Street Tacos: 3 of the same kind = $12; 3 different = $5 each ($15)
+  if (categoryId === "mexican-street-tacos" && quantity === 3) {
+    return 12 + extrasTotal * quantity;
+  }
   return (basePrice + extrasTotal) * quantity;
 }
 
@@ -51,7 +56,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const lineTotal = computeLineTotal(
         item.basePrice,
         item.quantity,
-        item.addExtras
+        item.addExtras,
+        item.categoryId
       );
       setItems((prev) => [
         ...prev,
@@ -79,7 +85,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               lineTotal: computeLineTotal(
                 i.basePrice,
                 quantity,
-                i.addExtras
+                i.addExtras,
+                i.categoryId
               ),
             }
           : i
