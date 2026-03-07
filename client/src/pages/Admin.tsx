@@ -3,12 +3,12 @@
 // Password gate: 2022 (sessionStorage; change ADMIN_PASSWORD to update)
 // ============================================================
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra } from "@/data/orderOptions";
-import { ClipboardList, Printer } from "lucide-react";
+import { ClipboardList, Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 
 const ADMIN_SESSION_KEY = "margaritas_admin";
@@ -21,6 +21,7 @@ const PENDING_COLOR = "#DC2626";
 const READY_COLOR = "#16A34A";
 const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
+const API_BASE = import.meta.env.VITE_ORDERS_API_URL ?? "";
 
 /** Start a repeating alarm-clock style sound. Returns a function to stop it. Uses a context resumed after user gesture. */
 function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
@@ -107,11 +108,27 @@ function OrderCard({
   order,
   onStatusChange,
   onPrintTicket,
+  onRetryClover,
+  retryMessage,
 }: {
   order: PlacedOrder;
   onStatusChange: (id: string, status: OrderStatus) => void;
   onPrintTicket: (order: PlacedOrder) => void;
+  onRetryClover: (id: string) => void;
+  retryMessage?: { success: boolean; error?: string } | null;
 }) {
+  const [retrying, setRetrying] = useState(false);
+  const handleRetryClover = () => {
+    setRetrying(true);
+    onRetryClover(order.id);
+    setTimeout(() => setRetrying(false), 2000);
+  };
+  const cloverSynced = order.cloverSyncStatus === "synced";
+  const cloverFailed = order.cloverSyncStatus === "failed";
+  const cloverPending = !order.cloverSyncStatus || order.cloverSyncStatus === "pending";
+  const viewInCloverUrl = order.cloverOrderId
+    ? `https://www.clover.com/dashboard/orders/${encodeURIComponent(order.cloverOrderId)}`
+    : "https://www.clover.com/dashboard/orders";
   const handlePrint = () => {
     onPrintTicket(order);
   };
@@ -133,6 +150,21 @@ function OrderCard({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {order.cloverSyncStatus && (
+            <span
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+              style={{
+                backgroundColor: cloverSynced ? "rgba(22,163,74,0.15)" : cloverFailed ? "rgba(220,38,38,0.15)" : "rgba(234,179,8,0.2)",
+                color: cloverSynced ? READY_COLOR : cloverFailed ? PENDING_COLOR : "#CA8A04",
+              }}
+              title={order.cloverError ?? order.cloverSyncStatus}
+            >
+              {cloverSynced && <CheckCircle className="size-4 shrink-0" aria-hidden />}
+              {cloverFailed && <XCircle className="size-4 shrink-0" aria-hidden />}
+              {cloverPending && <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />}
+              {cloverSynced ? "Sent to Clover" : cloverFailed ? "Failed to send" : "Sending…"}
+            </span>
+          )}
           <span
             className="px-2 py-1 rounded text-xs font-semibold capitalize"
             style={{
@@ -186,6 +218,51 @@ function OrderCard({
         Pickup: {order.pickupAddress}
       </p>
 
+      {(order.cloverOrderId != null || order.cloverSyncStatus != null || order.cloverError != null) && (
+        <div className="mt-2 pt-2 border-t space-y-1" style={{ borderColor: "rgba(44,24,16,0.1)" }}>
+          {order.cloverOrderId && (
+            <p className="text-xs flex items-center gap-2" style={{ color: "#6B7280" }}>
+              <span className="font-medium" style={{ color: ESPRESSO }}>Clover Order ID:</span>
+              <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-xs">{order.cloverOrderId}</code>
+            </p>
+          )}
+          {order.cloverError && (
+            <p className="text-xs text-red-600" title={order.cloverError}>
+              {order.cloverError.slice(0, 80)}{order.cloverError.length > 80 ? "…" : ""}
+            </p>
+          )}
+          {retryMessage != null && (
+            <p className={`text-xs font-medium ${retryMessage.success ? "text-green-600" : "text-red-600"}`}>
+              {retryMessage.success ? "✓ Resent to Clover successfully." : `✗ ${retryMessage.error ?? "Retry failed."}`}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {(cloverFailed || cloverPending) && API_BASE && (
+              <button
+                type="button"
+                onClick={handleRetryClover}
+                disabled={retrying}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+              >
+                <RefreshCw className={retrying ? "size-3 animate-spin" : "size-3"} />
+                Retry send to Clover
+              </button>
+            )}
+            {order.cloverOrderId && (
+              <a
+                href={viewInCloverUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-gray-400 text-gray-700 hover:bg-gray-50"
+              >
+                <ExternalLink className="size-3" />
+                View in Clover Dashboard
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t" style={{ borderColor: "rgba(44,24,16,0.1)" }}>
         <button
           type="button"
@@ -226,6 +303,50 @@ export default function Admin() {
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [orderToPrint, setOrderToPrint] = useState<PlacedOrder | null>(null);
+  const [testCloverResult, setTestCloverResult] = useState<{ success: boolean; cloverOrderId?: string; error?: string } | null>(null);
+  const [retryMessage, setRetryMessage] = useState<{ orderId: string; success: boolean; error?: string } | null>(null);
+
+  const handleRetryClover = useCallback(
+    async (id: string) => {
+      if (!API_BASE) return;
+      setRetryMessage(null);
+      try {
+        const res = await fetch(`${API_BASE}/api/orders/${id}/sync-clover`, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          await refreshOrders();
+          setRetryMessage({ orderId: id, success: true });
+        } else {
+          setRetryMessage({ orderId: id, success: false, error: (data as { error?: string }).error ?? res.statusText });
+        }
+        setTimeout(() => setRetryMessage(null), 4000);
+      } catch (e) {
+        setRetryMessage({ orderId: id, success: false, error: String(e) });
+        setTimeout(() => setRetryMessage(null), 4000);
+        console.error("Retry Clover failed", e);
+      }
+    },
+    [refreshOrders]
+  );
+
+  const handleTestClover = useCallback(async () => {
+    if (!API_BASE) {
+      setTestCloverResult({ success: false, error: "Orders API URL not set (VITE_ORDERS_API_URL)" });
+      return;
+    }
+    setTestCloverResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/test-clover`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      setTestCloverResult({
+        success: data.success === true,
+        cloverOrderId: data.cloverOrderId,
+        error: data.error,
+      });
+    } catch (e) {
+      setTestCloverResult({ success: false, error: String(e) });
+    }
+  }, []);
 
   useEffect(() => {
     setAuthenticated(sessionStorage.getItem(ADMIN_SESSION_KEY) === "true");
@@ -240,6 +361,7 @@ export default function Admin() {
     totalCount,
     isLoading,
     useApi,
+    refreshOrders,
   } = useOrders();
 
   /** Track which order IDs we've already seen — used to detect new orders for auto-print */
@@ -347,7 +469,13 @@ export default function Admin() {
   );
 
   const [viewMode, setViewMode] = useState<"today" | "all-completed">("today");
+  const [cloverFilter, setCloverFilter] = useState<"all" | "synced" | "failed">("all");
   const ordersToShow = viewMode === "today" ? todayOrders : allCompletedOrders;
+  const ordersToShowFiltered = useMemo(() => {
+    if (cloverFilter === "all") return ordersToShow;
+    if (cloverFilter === "synced") return ordersToShow.filter((o) => o.cloverSyncStatus === "synced");
+    return ordersToShow.filter((o) => o.cloverSyncStatus === "failed");
+  }, [ordersToShow, cloverFilter]);
 
   const todayPendingCount = todayOrders.filter((o) => o.status === "pending").length;
   const todayReadyCount = todayOrders.filter((o) => o.status === "ready").length;
@@ -447,6 +575,17 @@ export default function Admin() {
               Synced
             </span>
           )}
+          {API_BASE && (
+            <button
+              type="button"
+              onClick={handleTestClover}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 border border-amber-500"
+              title="Send a test order to Clover and print a test receipt (marked TEST ORDER)"
+            >
+              <FlaskConical className="size-4" />
+              Test Clover Integration
+            </button>
+          )}
           <button
             type="button"
             onClick={logout}
@@ -526,24 +665,88 @@ export default function Admin() {
             </button>
           </div>
         </div>
+        {/* Clover filter: All / Synced / Failed */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="text-sm font-medium" style={{ color: "#6B7280" }}>Clover:</span>
+          <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "rgba(44,24,16,0.2)" }}>
+            <button
+              type="button"
+              onClick={() => setCloverFilter("all")}
+              className="px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: cloverFilter === "all" ? ESPRESSO : "transparent",
+                color: cloverFilter === "all" ? "white" : ESPRESSO,
+              }}
+            >
+              All orders
+            </button>
+            <button
+              type="button"
+              onClick={() => setCloverFilter("synced")}
+              className="px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: cloverFilter === "synced" ? READY_COLOR : "transparent",
+                color: cloverFilter === "synced" ? "white" : READY_COLOR,
+              }}
+            >
+              Sent to Clover
+            </button>
+            <button
+              type="button"
+              onClick={() => setCloverFilter("failed")}
+              className="px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: cloverFilter === "failed" ? PENDING_COLOR : "transparent",
+                color: cloverFilter === "failed" ? "white" : PENDING_COLOR,
+              }}
+            >
+              Failed to send
+            </button>
+          </div>
+        </div>
+        {testCloverResult != null && (
+          <div
+            className="mb-4 p-3 rounded-lg border text-sm"
+            style={{
+              backgroundColor: testCloverResult.success ? "rgba(22,163,74,0.1)" : "rgba(220,38,38,0.08)",
+              borderColor: testCloverResult.success ? READY_COLOR : PENDING_COLOR,
+            }}
+          >
+            {testCloverResult.success ? (
+              <>
+                <strong style={{ color: READY_COLOR }}>Clover integration working.</strong>
+                {testCloverResult.cloverOrderId && (
+                  <> Order ID: <code className="bg-white/50 px-1 rounded">{testCloverResult.cloverOrderId}</code>. A test receipt (marked &quot;TEST ORDER&quot;) should have printed on your Clover printer.</>
+                )}
+              </>
+            ) : (
+              <>
+                <strong style={{ color: PENDING_COLOR }}>Clover test failed:</strong> {testCloverResult.error ?? "Unknown error"}
+              </>
+            )}
+          </div>
+        )}
         {isLoading ? (
           <p className="text-center py-8" style={{ color: "#6B7280" }}>
             Loading orders…
           </p>
-        ) : ordersToShow.length === 0 ? (
+        ) : ordersToShowFiltered.length === 0 ? (
           <p className="text-center py-8" style={{ color: "#6B7280" }}>
             {viewMode === "today"
               ? "No orders today yet. Orders from checkout will appear here."
               : "No completed orders yet."}
+            {cloverFilter !== "all" && " No orders match the current Clover filter."}
           </p>
         ) : (
           <div className="space-y-4">
-            {ordersToShow.map((order) => (
+            {ordersToShowFiltered.map((order) => (
               <OrderCard
                 key={order.id}
                 order={order}
                 onStatusChange={setOrderStatus}
                 onPrintTicket={handlePrintTicket}
+                onRetryClover={handleRetryClover}
+                retryMessage={retryMessage?.orderId === order.id ? { success: retryMessage.success, error: retryMessage.error } : null}
               />
             ))}
           </div>

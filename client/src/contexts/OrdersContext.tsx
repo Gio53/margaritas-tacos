@@ -31,12 +31,17 @@ export interface PlacedOrder {
   pickupAddress: string;
   paymentMethod: "card" | "cash";
   createdAt: number;
+  /** Set when order is synced to Clover via API v3 */
+  cloverOrderId?: string;
+  cloverSyncStatus?: "pending" | "synced" | "failed";
+  cloverError?: string;
 }
 
 interface OrdersContextValue {
   orders: PlacedOrder[];
   addOrder: (order: Omit<PlacedOrder, "id" | "status" | "createdAt">) => void;
   setOrderStatus: (orderId: string, status: OrderStatus) => void;
+  refreshOrders: () => Promise<void>;
   pendingCount: number;
   readyCount: number;
   completedCount: number;
@@ -190,6 +195,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       orders,
       addOrder,
       setOrderStatus,
+      refreshOrders: loadOrders,
       pendingCount,
       readyCount,
       completedCount,
@@ -201,6 +207,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       orders,
       addOrder,
       setOrderStatus,
+      loadOrders,
       pendingCount,
       readyCount,
       completedCount,

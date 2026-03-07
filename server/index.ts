@@ -16,7 +16,31 @@ const ORDERS_FILE =
     ? path.resolve(__dirname, "..", "data", "orders.json")
     : path.resolve(__dirname, "..", "data", "orders.json");
 
-async function readOrders(): Promise<unknown[]> {
+/** Order as stored in orders.json; includes optional Clover sync fields */
+interface StoredOrder {
+  id: string;
+  status: string;
+  customer?: { firstName?: string; lastName?: string; email?: string; phone?: string };
+  items?: Array<{
+    categoryName?: string;
+    itemName?: string;
+    quantity?: number;
+    removeIngredients?: string[];
+    addExtras?: unknown[];
+    lineTotal?: number;
+  }>;
+  subtotal?: number;
+  tax?: number;
+  total?: number;
+  pickupAddress?: string;
+  paymentMethod?: string;
+  createdAt?: number;
+  cloverOrderId?: string;
+  cloverSyncStatus?: "pending" | "synced" | "failed";
+  cloverError?: string;
+}
+
+async function readOrders(): Promise<StoredOrder[]> {
   try {
     const raw = await fs.readFile(ORDERS_FILE, "utf-8");
     const data = JSON.parse(raw);
@@ -26,7 +50,7 @@ async function readOrders(): Promise<unknown[]> {
   }
 }
 
-async function writeOrders(orders: unknown[]) {
+async function writeOrders(orders: StoredOrder[]) {
   await fs.mkdir(path.dirname(ORDERS_FILE), { recursive: true });
   await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
 }
@@ -54,6 +78,120 @@ async function startServer() {
   const CLOVER_CHARGES_URL = CLOVER_SANDBOX
     ? "https://scl-sandbox.dev.clover.com/v1/charges"
     : "https://scl.clover.com/v1/charges";
+
+  const CLOVER_V3_BASE = CLOVER_SANDBOX
+    ? "https://apisandbox.dev.clover.com"
+    : "https://api.clover.com";
+  const CLOVER_MERCHANT_ID = process.env.CLOVER_MERCHANT_ID ?? "";
+  const CLOVER_API_TOKEN = process.env.CLOVER_API_TOKEN ?? "";
+
+  /**
+   * Create a Clover v3 order with line items and trigger print on the merchant's default printer.
+   * Uses API Token from Dashboard → API Tokens (Read/Write Orders). Prices in cents.
+   */
+  async function sendOrderToClover(order: StoredOrder): Promise<{
+    cloverOrderId?: string;
+    cloverSyncStatus: "synced" | "failed";
+    cloverError?: string;
+  }> {
+    if (!CLOVER_MERCHANT_ID || !CLOVER_API_TOKEN) {
+      console.warn("Clover v3 not configured: set CLOVER_MERCHANT_ID and CLOVER_API_TOKEN");
+      return { cloverSyncStatus: "failed", cloverError: "Clover v3 not configured" };
+    }
+    const mId = CLOVER_MERCHANT_ID;
+    const totalCents = Math.round((order.total ?? 0) * 100);
+    const customerName = [order.customer?.firstName, order.customer?.lastName].filter(Boolean).join(" ") || "Customer";
+    const customerPhone = order.customer?.phone ?? "";
+    const pickup = order.pickupAddress ?? "";
+    const noteLines = [`Customer: ${customerName}`, customerPhone ? `Phone: ${customerPhone}` : "", pickup ? `Pickup: ${pickup}` : ""].filter(Boolean);
+    const orderNote = noteLines.join("\n");
+
+    try {
+      const createRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+        },
+        body: JSON.stringify({
+          state: "Open",
+          total: totalCents,
+          currency: "USD",
+          note: orderNote,
+        }),
+      });
+      if (!createRes.ok) {
+        const errText = await createRes.text();
+        console.error("Clover create order error", createRes.status, errText);
+        return { cloverSyncStatus: "failed", cloverError: errText.slice(0, 200) };
+      }
+      const created = (await createRes.json()) as { id?: string };
+      const cloverOrderId = created.id;
+      if (!cloverOrderId) {
+        return { cloverSyncStatus: "failed", cloverError: "No order id in Clover response" };
+      }
+
+      const orderItems = order.items ?? [];
+      for (const line of orderItems) {
+        const qty = Math.max(1, line.quantity ?? 1);
+        const lineTotal = line.lineTotal ?? 0;
+        const pricePerUnitCents = Math.round((lineTotal / qty) * 100);
+        const name = [line.categoryName, line.itemName].filter(Boolean).join(" — ") || line.itemName || "Item";
+        const mods: string[] = [];
+        if (line.removeIngredients?.length) mods.push(`No: ${line.removeIngredients.join(", ")}`);
+        if (line.addExtras?.length) {
+          const extras = line.addExtras.map((e: unknown) => (typeof e === "object" && e !== null && "name" in e ? String((e as { name?: string }).name) : String(e)));
+          mods.push(`Add: ${extras.join(", ")}`);
+        }
+        const lineNote = mods.join("; ") || undefined;
+        const lineRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+          },
+          body: JSON.stringify({
+            name,
+            price: pricePerUnitCents,
+            unitQty: qty,
+            ...(lineNote && { note: lineNote }),
+          }),
+        });
+        if (!lineRes.ok) {
+          const errText = await lineRes.text();
+          console.error("Clover line item error", lineRes.status, errText);
+          return {
+            cloverOrderId,
+            cloverSyncStatus: "failed",
+            cloverError: `Line item failed: ${errText.slice(0, 150)}`,
+          };
+        }
+      }
+
+      const printRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/print_event`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+        },
+        body: JSON.stringify({ orderRef: { id: cloverOrderId } }),
+      });
+      if (!printRes.ok) {
+        const errText = await printRes.text();
+        console.error("Clover print_event error", printRes.status, errText);
+        return {
+          cloverOrderId,
+          cloverSyncStatus: "synced",
+          cloverError: `Order created but print failed: ${errText.slice(0, 100)}`,
+        };
+      }
+      return { cloverOrderId, cloverSyncStatus: "synced" };
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      console.error("Clover v3 error", err);
+      return { cloverSyncStatus: "failed", cloverError: err };
+    }
+  }
 
   function parseExpiry(expiry: string): { exp_month: string; exp_year: string } | null {
     const s = String(expiry).replace(/\D/g, "");
@@ -93,11 +231,11 @@ async function startServer() {
       }
 
       const orderId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const newOrder = {
+      const newOrder: StoredOrder = {
         id: orderId,
         status: "pending",
         customer,
-        items,
+        items: items as StoredOrder["items"],
         subtotal: subtotal ?? total,
         tax: tax ?? 0,
         total,
@@ -184,7 +322,20 @@ async function startServer() {
       orders.unshift(newOrder);
       await writeOrders(orders);
 
-      res.status(201).json(newOrder);
+      const cloverResult = await sendOrderToClover(newOrder);
+      const updatedOrder: StoredOrder = {
+        ...newOrder,
+        cloverOrderId: cloverResult.cloverOrderId,
+        cloverSyncStatus: cloverResult.cloverSyncStatus,
+        cloverError: cloverResult.cloverError,
+      };
+      const idx = orders.findIndex((o) => o.id === newOrder.id);
+      if (idx !== -1) {
+        orders[idx] = updatedOrder;
+        await writeOrders(orders);
+      }
+
+      res.status(201).json(updatedOrder);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Checkout failed. Please try again." });
@@ -205,8 +356,8 @@ async function startServer() {
       const body = req.body as Record<string, unknown>;
       const orders = await readOrders();
       const id = `order-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const newOrder = {
-        ...body,
+      const newOrder: StoredOrder = {
+        ...(body as Partial<StoredOrder>),
         id,
         status: "pending",
         createdAt: Date.now(),
@@ -217,6 +368,60 @@ async function startServer() {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Failed to save order" });
+    }
+  });
+
+  /** Retry sending a single order to Clover (e.g. after failed sync). */
+  app.post("/api/orders/:id/sync-clover", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const orders = await readOrders();
+      const index = orders.findIndex((o) => o.id === id);
+      if (index === -1) return res.status(404).json({ error: "Order not found" });
+      const order = orders[index];
+      const result = await sendOrderToClover(order);
+      const updated: StoredOrder = {
+        ...order,
+        cloverOrderId: result.cloverOrderId ?? order.cloverOrderId,
+        cloverSyncStatus: result.cloverSyncStatus,
+        cloverError: result.cloverError,
+      };
+      orders[index] = updated;
+      await writeOrders(orders);
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to sync order to Clover" });
+    }
+  });
+
+  /** Send a test order to Clover to verify integration and receipt printing. Clearly marked as TEST ORDER. */
+  app.post("/api/orders/test-clover", async (_req, res) => {
+    try {
+      const testOrder: StoredOrder = {
+        id: "test-order-" + Date.now(),
+        status: "pending",
+        customer: { firstName: "TEST ORDER", lastName: "(Not a real order)", email: "test@example.com", phone: "555-123-4567" },
+        items: [
+          { categoryName: "Tacos", itemName: "Street Taco", quantity: 2, lineTotal: 10, removeIngredients: [], addExtras: [] },
+          { categoryName: "Drinks", itemName: "Margarita", quantity: 1, lineTotal: 8, removeIngredients: [], addExtras: [] },
+        ],
+        subtotal: 18,
+        tax: 0,
+        total: 18,
+        pickupAddress: "This is a test receipt only. Safe to ignore.",
+        paymentMethod: "cash",
+        createdAt: Date.now(),
+      };
+      const result = await sendOrderToClover(testOrder);
+      res.json({
+        success: result.cloverSyncStatus === "synced",
+        cloverOrderId: result.cloverOrderId,
+        error: result.cloverError,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ success: false, error: String(e) });
     }
   });
 
