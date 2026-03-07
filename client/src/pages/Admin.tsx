@@ -114,17 +114,6 @@ function OrderCard({
 }) {
   const handlePrint = () => {
     onPrintTicket(order);
-    const html = getTicketPrintHtml(order);
-    const w = window.open("", "_blank", "width=300,height=500");
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => {
-        w.focus();
-        w.print();
-        w.afterprint = () => w.close();
-      }, 200);
-    }
   };
   return (
     <div
