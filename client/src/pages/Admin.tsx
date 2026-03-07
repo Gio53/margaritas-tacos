@@ -77,7 +77,7 @@ function OrderCard({
             {order.customer.firstName} {order.customer.lastName}
           </p>
           <p className="text-sm" style={{ color: "#6B7280" }}>
-            {order.customer.phone} · {order.customer.email}
+            {[order.customer.phone, order.customer.email].filter(Boolean).join(" · ") || "—"}
           </p>
           <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
             {formatDate(order.createdAt)} at {formatTime(order.createdAt)} · {order.paymentMethod === "card" ? "Card" : "Cash on pickup"}
@@ -221,10 +221,20 @@ export default function Admin() {
     [orders, startOfToday]
   );
 
+  /** All completed orders, newest first (for "All completed" view) */
+  const allCompletedOrders = useMemo(
+    () => [...orders].filter((o) => o.status === "completed").sort((a, b) => b.createdAt - a.createdAt),
+    [orders]
+  );
+
+  const [viewMode, setViewMode] = useState<"today" | "all-completed">("today");
+  const ordersToShow = viewMode === "today" ? todayOrders : allCompletedOrders;
+
   const todayPendingCount = todayOrders.filter((o) => o.status === "pending").length;
   const todayReadyCount = todayOrders.filter((o) => o.status === "ready").length;
   const todayCompletedCount = todayOrders.filter((o) => o.status === "completed").length;
   const todayTotalCount = todayOrders.length;
+  const allCompletedCount = allCompletedOrders.length;
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,21 +368,49 @@ export default function Admin() {
           />
         </div>
 
-        {/* Order list — today only (resets at 12 AM) */}
-        <h2 className="text-lg font-bold mb-3" style={{ color: ESPRESSO }}>
-          Orders — Today
-        </h2>
+        {/* Order list — Today or All completed */}
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <h2 className="text-lg font-bold" style={{ color: ESPRESSO }}>
+            {viewMode === "today" ? "Orders — Today" : "All completed orders"}
+          </h2>
+          <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "rgba(44,24,16,0.2)" }}>
+            <button
+              type="button"
+              onClick={() => setViewMode("today")}
+              className="px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: viewMode === "today" ? ESPRESSO : "transparent",
+                color: viewMode === "today" ? "white" : ESPRESSO,
+              }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("all-completed")}
+              className="px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: viewMode === "all-completed" ? ESPRESSO : "transparent",
+                color: viewMode === "all-completed" ? "white" : ESPRESSO,
+              }}
+            >
+              All completed ({allCompletedCount})
+            </button>
+          </div>
+        </div>
         {isLoading ? (
           <p className="text-center py-8" style={{ color: "#6B7280" }}>
             Loading orders…
           </p>
-        ) : todayOrders.length === 0 ? (
+        ) : ordersToShow.length === 0 ? (
           <p className="text-center py-8" style={{ color: "#6B7280" }}>
-            No orders today yet. Orders from checkout will appear here.
+            {viewMode === "today"
+              ? "No orders today yet. Orders from checkout will appear here."
+              : "No completed orders yet."}
           </p>
         ) : (
           <div className="space-y-4">
-            {todayOrders.map((order) => (
+            {ordersToShow.map((order) => (
               <OrderCard
                 key={order.id}
                 order={order}

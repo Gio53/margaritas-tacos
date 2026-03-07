@@ -48,8 +48,8 @@ export default function Checkout() {
       toast.error("Your cart is empty");
       return;
     }
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
-      toast.error("Please fill in all personal information");
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Please enter at least your first and last name");
       return;
     }
     if (!cardNumber.trim() || !expiry.trim() || !cvc.trim()) {
@@ -63,7 +63,7 @@ export default function Checkout() {
       if (!apiUrl) {
         // Demo mode: save order for admin dashboard (API or localStorage), then clear cart
         await addOrder({
-          customer: { firstName, lastName, email, phone },
+          customer: { firstName, lastName, email: email.trim() || "", phone: phone.trim() || "" },
           items: items.map((i) => ({
             categoryName: i.categoryName,
             itemName: i.itemName,
@@ -79,8 +79,17 @@ export default function Checkout() {
           paymentMethod: "card",
         });
         clearCart();
-        toast.success("Order placed! (Demo — add Clover API for real payments)");
-        setLocation("/order");
+        const hasPhone = !!phone.trim();
+        toast.success(
+          "Thank you for ordering Margaritas Tacos! Your order should be ready in 15–20 minutes.",
+          hasPhone
+            ? { duration: 5000 }
+            : {
+                description: "You didn't leave a phone number, so you won't receive a text when it's ready. Plan to pick up in about 15–20 minutes.",
+                duration: 7000,
+              }
+        );
+        setLocation("/");
         return;
       }
 
@@ -90,7 +99,7 @@ export default function Checkout() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentMethod: "card",
-          customer: { firstName, lastName, email, phone },
+          customer: { firstName, lastName, email: email.trim() || "", phone: phone.trim() || "" },
           card: { number: cardNumber.replace(/\D/g, ""), expiry, cvc },
           items: items.map((i) => ({
             categoryName: i.categoryName,
@@ -113,8 +122,17 @@ export default function Checkout() {
       }
       // Server already saved the order (and charged card if applicable)
       clearCart();
-      toast.success("Order placed! We'll have it ready for pickup.");
-      setLocation("/order");
+      const hasPhone = !!phone.trim();
+      toast.success(
+        "Thank you for ordering Margaritas Tacos! Your order should be ready in 15–20 minutes.",
+        hasPhone
+          ? { duration: 5000 }
+          : {
+              description: "You didn't leave a phone number, so you won't receive a text when it's ready. Plan to pick up in about 15–20 minutes.",
+              duration: 7000,
+            }
+      );
+      setLocation("/");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -275,7 +293,7 @@ export default function Checkout() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: ESPRESSO }}>Email</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: ESPRESSO }}>Email <span className="font-normal opacity-75">(optional)</span></label>
                 <input
                   type="email"
                   value={email}
@@ -286,7 +304,7 @@ export default function Checkout() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: ESPRESSO }}>Phone Number</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: ESPRESSO }}>Phone Number <span className="font-normal opacity-75">(optional)</span></label>
                 <input
                   type="tel"
                   value={phone}
