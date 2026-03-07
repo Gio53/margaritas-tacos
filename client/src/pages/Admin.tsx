@@ -22,31 +22,50 @@ const READY_COLOR = "#16A34A";
 const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
 
-/** Play a short chime (Web Audio API) when a new order arrives. Pass a context resumed after user gesture so browsers allow sound. */
-function playNewOrderChime(ctx: AudioContext | null | undefined) {
+/** Start a repeating alarm-clock style sound. Returns a function to stop it. Uses a context resumed after user gesture. */
+function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let gainNode: GainNode | null = null;
   try {
     const audioContext = ctx && ctx.state !== "closed"
       ? ctx
       : new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const playTone = (freq: number, startTime: number, duration: number) => {
+    gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0.25;
+
+    const playBeep = (freq: number, start: number, duration: number) => {
       const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
+      osc.connect(gainNode!);
       osc.frequency.value = freq;
-      osc.type = "sine";
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
+      osc.type = "square";
+      osc.start(start);
+      osc.stop(start + duration);
     };
-    playTone(523.25, 0, 0.2);       // C5
-    playTone(659.25, 0.15, 0.25);   // E5
-    playTone(783.99, 0.3, 0.35);    // G5
+
+    const playTwoBeeps = () => {
+      const now = audioContext.currentTime;
+      playBeep(880, now, 0.12);
+      playBeep(880, now + 0.2, 0.12);
+    };
+
+    playTwoBeeps();
+    intervalId = setInterval(playTwoBeeps, 1000);
   } catch {
-    // ignore if AudioContext not supported or blocked
+    // ignore
   }
+  return () => {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+    if (gainNode) {
+      try {
+        gainNode.gain.setValueAtTime(0, gainNode.context.currentTime);
+      } catch {
+        // ignore
+      }
+      gainNode = null;
+    }
+  };
 }
 
 function formatTime(ts: number) {
@@ -94,6 +113,7 @@ function OrderCard({
   onPrintTicket: (order: PlacedOrder) => void;
 }) {
   const handlePrint = () => {
+    onPrintTicket(order);
     const html = getTicketPrintHtml(order);
     const w = window.open("", "_blank", "width=300,height=500");
     if (w) {
@@ -105,7 +125,6 @@ function OrderCard({
         w.afterprint = () => w.close();
       }, 200);
     }
-    onPrintTicket(order);
   };
   return (
     <div
@@ -239,6 +258,8 @@ export default function Admin() {
   /** AudioContext resumed on login (user gesture) so chime can play when new order arrives */
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioUnlockAttemptedRef = useRef(false);
+  /** Stop function for the repeating new-order alarm; cleared when Print ticket is pressed */
+  const stopAlarmRef = useRef<(() => void) | null>(null);
 
   // If already logged in, unlock audio on first click anywhere (so chime works after refresh)
   useEffect(() => {
@@ -295,9 +316,20 @@ export default function Admin() {
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
     const newest = newPending.sort((a, b) => b.createdAt - a.createdAt)[0];
-    playNewOrderChime(audioContextRef.current);
+    stopAlarmRef.current?.();
+    stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
     openTicketPrintWindow(newest);
   }, [orders, useApi]);
+
+  const stopNewOrderAlarm = () => {
+    stopAlarmRef.current?.();
+    stopAlarmRef.current = null;
+  };
+
+  const handlePrintTicket = (order: PlacedOrder) => {
+    stopNewOrderAlarm();
+    setOrderToPrint(order);
+  };
 
   // Only show orders from today (from 12:00 AM local time); dateTick updates at midnight
   const [dateTick, setDateTick] = useState(() => new Date().toDateString());
@@ -523,7 +555,7 @@ export default function Admin() {
                 key={order.id}
                 order={order}
                 onStatusChange={setOrderStatus}
-                onPrintTicket={setOrderToPrint}
+                onPrintTicket={handlePrintTicket}
               />
             ))}
           </div>
