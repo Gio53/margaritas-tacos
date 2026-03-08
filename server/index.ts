@@ -143,7 +143,8 @@ async function startServer() {
           const extras = line.addExtras.map((e: unknown) => {
             const ex = e as { name?: string; quantity?: number };
             const qty = ex?.quantity ?? 1;
-            return qty > 1 ? `${ex.name} ×${qty}` : String(ex.name ?? "");
+            const name = String(ex?.name ?? "").trim() || "extra";
+            return `Side of ${name} ×${qty}`;
           }).filter(Boolean);
           mods.push(`Add: ${extras.join(", ")}`);
         }
@@ -173,21 +174,38 @@ async function startServer() {
         }
       }
 
-      const printRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/print_event`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${CLOVER_API_TOKEN}`,
-        },
-        body: JSON.stringify({ orderRef: { id: cloverOrderId } }),
-      });
-      if (!printRes.ok) {
-        const errText = await printRes.text();
-        console.error("Clover print_event error", printRes.status, errText);
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const maxPrintRetries = 3;
+      const retryDelays = [0, 2000, 4000];
+      let printOk = false;
+      let printErrText = "";
+      for (let attempt = 0; attempt < maxPrintRetries; attempt++) {
+        if (attempt > 0) {
+          await sleep(retryDelays[attempt]);
+          console.warn(`Clover print_event retry ${attempt}/${maxPrintRetries - 1}`);
+        }
+        const printRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/print_event`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+          },
+          body: JSON.stringify({ orderRef: { id: cloverOrderId } }),
+        });
+        if (printRes.ok) {
+          printOk = true;
+          break;
+        }
+        printErrText = await printRes.text();
+        console.error("Clover print_event error", printRes.status, printErrText);
+        const isRetryable = printRes.status === 429 || (printRes.status >= 500 && printRes.status < 600);
+        if (!isRetryable || attempt === maxPrintRetries - 1) break;
+      }
+      if (!printOk) {
         return {
           cloverOrderId,
           cloverSyncStatus: "synced",
-          cloverError: `Order created but print failed: ${errText.slice(0, 100)}`,
+          cloverError: `Order created but print failed: ${printErrText.slice(0, 120)}`,
         };
       }
       return { cloverOrderId, cloverSyncStatus: "synced" };
