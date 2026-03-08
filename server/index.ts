@@ -140,7 +140,11 @@ async function startServer() {
         const mods: string[] = [];
         if (line.removeIngredients?.length) mods.push(`No: ${line.removeIngredients.join(", ")}`);
         if (line.addExtras?.length) {
-          const extras = line.addExtras.map((e: unknown) => (typeof e === "object" && e !== null && "name" in e ? String((e as { name?: string }).name) : String(e)));
+          const extras = line.addExtras.map((e: unknown) => {
+            const ex = e as { name?: string; quantity?: number };
+            const qty = ex?.quantity ?? 1;
+            return qty > 1 ? `${ex.name} ×${qty}` : String(ex.name ?? "");
+          }).filter(Boolean);
           mods.push(`Add: ${extras.join(", ")}`);
         }
         const lineNote = mods.join("; ") || undefined;
@@ -153,7 +157,7 @@ async function startServer() {
           body: JSON.stringify({
             name,
             price: pricePerUnitCents,
-            unitQty: qty,
+            unitQty: Math.round(qty * 1000),
             unitName: "each",
             ...(lineNote && { note: lineNote }),
           }),

@@ -11,11 +11,11 @@ export interface OrderExtra {
 
 const SIDE_CUP_LABEL = "4oz cup";
 
-/** Format add extra for display: "Side of Guacamole (4oz cup) (+$3.00)" or "Side of Pico (4oz cup) ×2 (+$4.00)" */
+/** Format add extra for display: always show quantity, e.g. "Side of Guacamole (4oz cup) ×1 (+$3.00)" or "×2 (+$6.00)" */
 export function formatAddExtra(e: OrderExtra): string {
   const qty = e.quantity ?? 1;
   const total = e.price * qty;
-  const qtyLabel = qty > 1 ? ` ×${qty}` : "";
+  const qtyLabel = ` ×${qty}`;
   return `Side of ${e.name} (${SIDE_CUP_LABEL})${qtyLabel} (+$${total.toFixed(2)})`;
 }
 
