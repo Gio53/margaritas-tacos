@@ -40,12 +40,15 @@ export function computeLineTotal(
   addExtras: OrderExtra[],
   categoryId?: string
 ): number {
-  const extrasTotal = addExtras.reduce((s, e) => s + e.price, 0);
-  // Mexican Street Tacos: 3 of the same kind = $12; 3 different = $5 each ($15)
-  if (categoryId === "mexican-street-tacos" && quantity === 3) {
-    return 12 + extrasTotal * quantity;
+  const extrasTotal = addExtras.reduce(
+    (s, e) => s + e.price * (e.quantity ?? 1),
+    0
+  );
+  // Mexican Street Tacos: 3, 6, 9, 12... of the same kind = $4 each ($12, $24, $36, $48...); otherwise $5 each
+  if (categoryId === "mexican-street-tacos" && quantity >= 3 && quantity % 3 === 0) {
+    return quantity * 4 + extrasTotal;
   }
-  return (basePrice + extrasTotal) * quantity;
+  return basePrice * quantity + extrasTotal;
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {

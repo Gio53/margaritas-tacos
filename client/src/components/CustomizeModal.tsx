@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getOrderOptionsForCategory } from "@/data/orderOptions";
+import { getOrderOptionsForCategory, SIDE_CUP_LABEL } from "@/data/orderOptions";
 import type { MenuItem } from "@/data/menuData";
 import type { OrderExtra } from "@/data/orderOptions";
 import { useCart, computeLineTotal } from "@/contexts/CartContext";
@@ -56,21 +56,31 @@ export function CustomizeModal({
     );
   };
 
-  const toggleExtra = (extra: OrderExtra) => {
+  const getExtraQuantity = (name: string): number => {
+    const e = addExtras.find((x) => x.name === name);
+    return e?.quantity ?? 0;
+  };
+
+  const setExtraQuantity = (extra: OrderExtra, qty: number) => {
     setAddExtras((prev) => {
-      const exists = prev.find((e) => e.name === extra.name);
-      if (exists) return prev.filter((e) => e.name !== extra.name);
-      return [...prev, extra];
+      if (qty < 1) return prev.filter((e) => e.name !== extra.name);
+      const next = prev.filter((e) => e.name !== extra.name);
+      next.push({ ...extra, quantity: qty });
+      return next;
     });
   };
 
   const extrasTotal = useMemo(
-    () => addExtras.reduce((s, e) => s + e.price, 0),
+    () => addExtras.reduce((s, e) => s + e.price * (e.quantity ?? 1), 0),
     [addExtras]
   );
   const lineTotal = computeLineTotal(item.price, quantity, addExtras, categoryId);
 
   const handleAddToCart = () => {
+    const extrasWithQty = addExtras.map((e) => ({
+      ...e,
+      quantity: e.quantity ?? 1,
+    }));
     addItem({
       categoryId,
       categoryName,
@@ -78,7 +88,7 @@ export function CustomizeModal({
       basePrice: item.price,
       quantity,
       removeIngredients: [...removeIngredients],
-      addExtras: [...addExtras],
+      addExtras: extrasWithQty,
     });
     onOpenChange(false);
     setQuantity(1);
@@ -200,36 +210,63 @@ export function CustomizeModal({
             </div>
           )}
 
-          {/* Add Extras on the Side */}
+          {/* Add Extras on the Side (4oz cup each) */}
           {hasExtras && (
             <div>
               <h3
                 className="text-sm font-semibold mb-2"
                 style={{ color: CREAM }}
               >
-                Add Extras on the Side (+$2 each)
+                Add Extras on the Side ({SIDE_CUP_LABEL} each)
               </h3>
               <div className="space-y-2">
-                {options.addExtras.map((extra) => (
-                  <label
-                    key={extra.name}
-                    className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer transition-colors"
-                    style={{
-                      borderColor: "rgba(255,248,240,0.2)",
-                      backgroundColor: "rgba(255,255,255,0.05)",
-                      color: CREAM,
-                    }}
-                  >
-                    <Checkbox
-                      checked={addExtras.some((e) => e.name === extra.name)}
-                      onCheckedChange={() => toggleExtra(extra)}
-                      className="border-[rgba(255,248,240,0.4)] data-[state=checked]:bg-[#E8A838] data-[state=checked]:border-[#E8A838]"
-                    />
-                    <span>
-                      {extra.name} +${extra.price.toFixed(2)}
-                    </span>
-                  </label>
-                ))}
+                {options.addExtras.map((extra) => {
+                  const qty = getExtraQuantity(extra.name);
+                  return (
+                    <div
+                      key={extra.name}
+                      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                      style={{
+                        borderColor: "rgba(255,248,240,0.2)",
+                        backgroundColor: "rgba(255,255,255,0.05)",
+                        color: CREAM,
+                      }}
+                    >
+                      <span>
+                        {extra.name} ({SIDE_CUP_LABEL}) +${extra.price.toFixed(2)} each
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setExtraQuantity(extra, Math.max(0, qty - 1))}
+                          className="size-8 rounded flex items-center justify-center border transition-colors disabled:opacity-40"
+                          style={{
+                            borderColor: "rgba(255,248,240,0.3)",
+                            color: CREAM,
+                            backgroundColor: "rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <Minus className="size-4" />
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold">
+                          {qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraQuantity(extra, qty + 1)}
+                          className="size-8 rounded flex items-center justify-center border transition-colors"
+                          style={{
+                            borderColor: "rgba(255,248,240,0.3)",
+                            color: CREAM,
+                            backgroundColor: "rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <Plus className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

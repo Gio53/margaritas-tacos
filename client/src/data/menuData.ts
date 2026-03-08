@@ -25,7 +25,7 @@ export const menuCategories: MenuCategory[] = [
     name: "Mexican Street Tacos",
     badgeColor: "badge-orange",
     description: "Corn tortilla served with your choice of meat, cilantro, onions and guacamole",
-    specialNote: "3 Same Tacos = $12",
+    specialNote: "3 Same = $12 · 6 = $24 · 9 = $36 ($4 each when ordering 3, 6, 9, 12…)",
     items: [
       { name: "Grilled Chicken", price: 5.00 },
       { name: "Birria (Brisket, Short Rib)", price: 5.00 },

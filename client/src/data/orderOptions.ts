@@ -5,12 +5,21 @@
 export interface OrderExtra {
   name: string;
   price: number;
+  /** Number of sides (default 1). */
+  quantity?: number;
 }
 
-/** Format add extra for display: "Sour Cream On the Side (+$2.00)" */
+const SIDE_CUP_LABEL = "4oz cup";
+
+/** Format add extra for display: "Side of Guacamole (4oz cup) (+$3.00)" or "Side of Pico (4oz cup) ×2 (+$4.00)" */
 export function formatAddExtra(e: OrderExtra): string {
-  return `${e.name} On the Side (+$${e.price.toFixed(2)})`;
+  const qty = e.quantity ?? 1;
+  const total = e.price * qty;
+  const qtyLabel = qty > 1 ? ` ×${qty}` : "";
+  return `Side of ${e.name} (${SIDE_CUP_LABEL})${qtyLabel} (+$${total.toFixed(2)})`;
 }
+
+export { SIDE_CUP_LABEL };
 
 export interface CategoryOrderOptions {
   removeIngredients: string[];
@@ -18,7 +27,7 @@ export interface CategoryOrderOptions {
 }
 
 const EXTRAS_2 = [
-  { name: "Guacamole", price: 2.0 },
+  { name: "Guacamole", price: 3.0 },
   { name: "Pico de Gallo", price: 2.0 },
   { name: "Sour Cream", price: 2.0 },
 ];
