@@ -428,7 +428,7 @@ export default function Admin() {
     if (newPending.length === 0) return;
     stopAlarmRef.current?.();
     stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
-    // No auto-print — alarm plays until user clicks "Print ticket" (avoids popup interfering with sound)
+    // Alarm plays until user presses Spacebar to stop (see keydown listener below)
   }, [orders, useApi]);
 
   const stopNewOrderAlarm = () => {
@@ -436,8 +436,22 @@ export default function Admin() {
     stopAlarmRef.current = null;
   };
 
+  // Stop the new-order alarm when user presses Spacebar (only when authenticated)
+  useEffect(() => {
+    if (!authenticated) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        stopNewOrderAlarm();
+        const target = e.target as HTMLElement;
+        const isInput = /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? "");
+        if (!isInput) e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [authenticated]);
+
   const handlePrintTicket = (order: PlacedOrder) => {
-    stopNewOrderAlarm();
     setOrderToPrint(order);
   };
 
@@ -568,6 +582,9 @@ export default function Admin() {
           >
             Order Management
           </h1>
+          <span className="text-xs text-white/70 hidden sm:inline" title="When the new-order alarm is playing">
+            (Spacebar to silence)
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {useApi && (
@@ -716,7 +733,7 @@ export default function Admin() {
               <>
                 <strong style={{ color: READY_COLOR }}>Clover integration working.</strong>
                 {testCloverResult.cloverOrderId && (
-                  <> Order ID: <code className="bg-white/50 px-1 rounded">{testCloverResult.cloverOrderId}</code>. A test receipt (marked &quot;TEST ORDER&quot;) should have printed on your Clover printer.</>
+                  <> Order ID: <code className="bg-white/50 px-1 rounded">{testCloverResult.cloverOrderId}</code>. A test receipt (customer: Test Order) should have printed on your Clover printer.</>
                 )}
               </>
             ) : (

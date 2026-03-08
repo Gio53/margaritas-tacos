@@ -364,7 +364,21 @@ async function startServer() {
       };
       orders.unshift(newOrder);
       await writeOrders(orders);
-      res.status(201).json(newOrder);
+
+      const cloverResult = await sendOrderToClover(newOrder);
+      const updatedOrder: StoredOrder = {
+        ...newOrder,
+        cloverOrderId: cloverResult.cloverOrderId,
+        cloverSyncStatus: cloverResult.cloverSyncStatus,
+        cloverError: cloverResult.cloverError,
+      };
+      const idx = orders.findIndex((o) => o.id === newOrder.id);
+      if (idx !== -1) {
+        orders[idx] = updatedOrder;
+        await writeOrders(orders);
+      }
+
+      res.status(201).json(updatedOrder);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Failed to save order" });
@@ -395,13 +409,13 @@ async function startServer() {
     }
   });
 
-  /** Send a test order to Clover to verify integration and receipt printing. Clearly marked as TEST ORDER. */
+  /** Send a test order to Clover to verify integration and receipt printing. Looks like a regular order; customer name is "Test Order". */
   app.post("/api/orders/test-clover", async (_req, res) => {
     try {
       const testOrder: StoredOrder = {
         id: "test-order-" + Date.now(),
         status: "pending",
-        customer: { firstName: "TEST ORDER", lastName: "(Not a real order)", email: "test@example.com", phone: "555-123-4567" },
+        customer: { firstName: "Test", lastName: "Order", email: "test@example.com", phone: "516-555-0123" },
         items: [
           { categoryName: "Tacos", itemName: "Street Taco", quantity: 2, lineTotal: 10, removeIngredients: [], addExtras: [] },
           { categoryName: "Drinks", itemName: "Margarita", quantity: 1, lineTotal: 8, removeIngredients: [], addExtras: [] },
@@ -409,7 +423,7 @@ async function startServer() {
         subtotal: 18,
         tax: 0,
         total: 18,
-        pickupAddress: "This is a test receipt only. Safe to ignore.",
+        pickupAddress: "4549 Austin Blvd, Island Park, NY",
         paymentMethod: "cash",
         createdAt: Date.now(),
       };

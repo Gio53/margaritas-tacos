@@ -51,16 +51,16 @@ export default function TestOrder() {
             quantity: 1,
             removeIngredients: [],
             addExtras: [],
-            lineTotal: 0,
+            lineTotal: 0.01,
           },
         ],
-        subtotal: 0,
+        subtotal: 0.01,
         tax: 0,
-        total: 0,
+        total: 0.01,
         pickupAddress: PICKUP_ADDRESS,
-        paymentMethod: "card",
+        paymentMethod: "cash",
       });
-      toast.success("Test order added. Check Order Management.");
+      toast.success("Test order added. Check Order Management — alarm will play; press Spacebar to silence. Receipt should print on Clover.");
     } catch (e) {
       toast.error("Failed to add test order");
     } finally {
@@ -121,7 +121,7 @@ export default function TestOrder() {
           Test order
         </h1>
         <p className="text-sm mb-4 text-center" style={{ color: "#6B7280" }}>
-          Adds one order with a $0 item. It will show in Order Management and trigger chime/print if enabled.
+          Adds one order. It will show in Order Management, trigger the alarm (press Spacebar to silence), and print on the Clover printer when configured.
         </p>
         <p className="text-xs mb-4 text-center" style={{ color: "#16a34a" }}>
           Test orders can be added 24/7 (hours don’t apply).
