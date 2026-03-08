@@ -154,6 +154,7 @@ async function startServer() {
             name,
             price: pricePerUnitCents,
             unitQty: qty,
+            unitName: "each",
             ...(lineNote && { note: lineNote }),
           }),
         });
