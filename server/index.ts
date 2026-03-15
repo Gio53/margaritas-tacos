@@ -149,6 +149,8 @@ async function startServer() {
           mods.push(`Add: ${extras.join(", ")}`);
         }
         const lineNote = mods.join("; ") || undefined;
+        // Mexican Street Tacos: receipt shows "1 order" / "2 orders" instead of "1 each" / "2 each"
+        const unitName = line.categoryName === "3 Mexican Street Tacos" ? "order" : "each";
         const lineRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
           method: "POST",
           headers: {
@@ -159,7 +161,7 @@ async function startServer() {
             name,
             price: pricePerUnitCents,
             unitQty: Math.round(qty * 1000),
-            unitName: "each",
+            unitName,
             ...(lineNote && { note: lineNote }),
           }),
         });
