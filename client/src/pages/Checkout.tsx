@@ -11,6 +11,7 @@ import { ChevronLeft, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { isOpen, CLOSED_MESSAGE } from "@/utils/hours";
 import { formatAddExtra } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
 
 const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
@@ -231,7 +232,7 @@ export default function Checkout() {
                       {line.categoryName} {line.itemName}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
-                      Qty: {line.quantity}
+                      Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
                       {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                       {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                     </p>
@@ -422,7 +423,7 @@ export default function Checkout() {
                   {line.categoryName} {line.itemName}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
-                  Qty: {line.quantity}
+                  Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
                   {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                   {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                 </p>

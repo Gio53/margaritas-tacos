@@ -38,16 +38,13 @@ export function computeLineTotal(
   basePrice: number,
   quantity: number,
   addExtras: OrderExtra[],
-  categoryId?: string
+  _categoryId?: string
 ): number {
   const extrasTotal = addExtras.reduce(
     (s, e) => s + e.price * (e.quantity ?? 1),
     0
   );
-  // Mexican Street Tacos: 3, 6, 9, 12... of the same kind = $4 each ($12, $24, $36, $48...); otherwise $5 each
-  if (categoryId === "mexican-street-tacos" && quantity >= 3 && quantity % 3 === 0) {
-    return quantity * 4 + extrasTotal;
-  }
+  // Mexican Street Tacos: quantity = number of orders of 3; each order = basePrice ($12)
   return basePrice * quantity + extrasTotal;
 }
 

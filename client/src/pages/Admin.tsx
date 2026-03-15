@@ -8,6 +8,7 @@ import { Link } from "wouter";
 import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
 import { ClipboardList, Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 
@@ -194,7 +195,7 @@ function OrderCard({
         {order.items.map((line, idx) => (
           <div key={idx} className="text-sm">
             <p className="font-semibold" style={{ color: ESPRESSO }}>
-              {line.categoryName} — {line.itemName} × {line.quantity}
+              {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryName, line.quantity)}
             </p>
             {(line.removeIngredients.length > 0 || line.addExtras.length > 0) && (
               <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>

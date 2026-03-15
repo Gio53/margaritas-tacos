@@ -12,6 +12,7 @@ import type { MenuItem } from "@/data/menuData";
 import { getOrderOptionsForCategory } from "@/data/orderOptions";
 import type { OrderExtra } from "@/data/orderOptions";
 import { computeLineTotal } from "@/contexts/CartContext";
+import { formatQuantityLabel } from "@/lib/utils";
 import { Plus, Minus, Trash2 } from "lucide-react";
 
 const PASSCODE = "test2022";
@@ -416,7 +417,7 @@ export default function TestOrder() {
                   >
                     <div>
                       <span className="font-medium">
-                        {line.categoryName} — {line.itemName} × {line.quantity}
+                        {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryId, line.quantity)}
                       </span>
                       {(line.removeIngredients.length > 0 || line.addExtras.length > 0) && (
                         <p className="text-xs text-gray-600 mt-0.5">

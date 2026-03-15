@@ -15,6 +15,7 @@ import { getOrderOptionsForCategory, SIDE_CUP_LABEL } from "@/data/orderOptions"
 import type { MenuItem } from "@/data/menuData";
 import type { OrderExtra } from "@/data/orderOptions";
 import { useCart, computeLineTotal } from "@/contexts/CartContext";
+import { formatQuantityLabel } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -153,16 +154,21 @@ export function CustomizeModal({
               >
                 <Minus className="size-4" />
               </button>
-              <input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) =>
-                  setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))
-                }
-                className="w-16 text-center rounded-md border bg-transparent text-white font-semibold"
-                style={{ borderColor: "rgba(255,248,240,0.3)" }}
-              />
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={1}
+                  value={quantity}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
+                  className="w-16 text-center rounded-md border bg-transparent text-white font-semibold"
+                  style={{ borderColor: "rgba(255,248,240,0.3)" }}
+                />
+                <span className="font-medium text-white">
+                  {formatQuantityLabel(categoryId, quantity).replace(/^\d+\s*/, "")}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => setQuantity((q) => q + 1)}

@@ -200,7 +200,6 @@ export default function Home() {
               <Link href="/order"
                 className="px-8 py-3 rounded font-bold transition-all hover:scale-105 flex items-center gap-2"
                 style={{ backgroundColor: "transparent", border: "2px solid #E8A838", color: "#E8A838", fontFamily: "'Oswald', sans-serif", fontSize: "1rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                <Phone size={16} />
                 Order Now
               </Link>
             </div>

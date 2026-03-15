@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCart } from "@/contexts/CartContext";
 import { formatAddExtra } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
 import { X } from "lucide-react";
 
 const ESPRESSO = "#2C1810";
@@ -121,7 +122,7 @@ export function CartModal({
                         className="min-w-[1.5rem] text-center font-semibold"
                         style={{ color: ESPRESSO }}
                       >
-                        {line.quantity}
+                        {formatQuantityLabel(line.categoryId, line.quantity)}
                       </span>
                       <button
                         type="button"

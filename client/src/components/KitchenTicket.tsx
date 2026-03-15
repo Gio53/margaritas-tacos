@@ -4,6 +4,7 @@
 
 import type { PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
 
 function formatTime(ts: number) {
   const d = new Date(ts);
@@ -28,7 +29,7 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
     .map(
       (line) =>
         `<div style="margin-bottom: 0.75rem; font-size: 14px;">
-          <p style="font-weight: bold; margin: 0 0 2px 0;">${line.quantity}× ${escapeHtml(line.categoryName)} — ${escapeHtml(line.itemName)}</p>
+          <p style="font-weight: bold; margin: 0 0 2px 0;">${escapeHtml(formatQuantityLabel(line.categoryName, line.quantity))} × ${escapeHtml(line.categoryName)} — ${escapeHtml(line.itemName)}</p>
           ${line.removeIngredients.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0 0 2px 0;">NO: ${escapeHtml(line.removeIngredients.join(", "))}</p>` : ""}
           ${line.addExtras.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0;">Add: ${escapeHtml(line.addExtras.map(formatAddExtra).join(", "))}</p>` : ""}
         </div>`
@@ -76,7 +77,7 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
           {order.items.map((line, idx) => (
             <div key={idx} className="text-base">
               <p className="font-bold">
-                {line.quantity}× {line.categoryName} — {line.itemName}
+                {formatQuantityLabel(line.categoryName, line.quantity)} × {line.categoryName} — {line.itemName}
               </p>
               {line.removeIngredients.length > 0 && (
                 <p className="text-sm text-gray-700">NO: {line.removeIngredients.join(", ")}</p>

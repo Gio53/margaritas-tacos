@@ -5,6 +5,7 @@
 
 import { useCart } from "@/contexts/CartContext";
 import { formatAddExtra } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
 import { X } from "lucide-react";
 
 const ESPRESSO = "#2C1810";
@@ -106,7 +107,7 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
                     <span
                       className="min-w-[1.5rem] text-center font-semibold text-white"
                     >
-                      {line.quantity}
+                      {formatQuantityLabel(line.categoryId, line.quantity)}
                     </span>
                     <button
                       type="button"
