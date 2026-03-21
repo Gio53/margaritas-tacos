@@ -12,6 +12,16 @@ import { toast } from "sonner";
 import { isOpen, CLOSED_MESSAGE } from "@/utils/hours";
 import { formatAddExtra } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
@@ -25,6 +35,7 @@ export default function Checkout() {
   const { addOrder } = useOrders();
   const [, setLocation] = useLocation();
   const [placing, setPlacing] = useState(false);
+  const [showPrepTimeDialog, setShowPrepTimeDialog] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -40,7 +51,8 @@ export default function Checkout() {
   const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
 
-  const handlePlaceOrder = async () => {
+  /** Step 1: validate, then show prep-time dialog (user taps Okay to actually submit). */
+  const handlePlaceOrderClick = () => {
     if (!isOpen()) {
       toast.error(CLOSED_MESSAGE);
       return;
@@ -57,12 +69,16 @@ export default function Checkout() {
       toast.error("Please enter card details");
       return;
     }
+    setShowPrepTimeDialog(true);
+  };
 
+  /** Step 2: after user confirms prep time in dialog. */
+  const submitOrderAfterConfirm = async () => {
+    setShowPrepTimeDialog(false);
     setPlacing(true);
     try {
       const apiUrl = import.meta.env.VITE_CHECKOUT_API_URL;
       if (!apiUrl) {
-        // Demo mode: save order for admin dashboard (API or localStorage), then clear cart
         await addOrder({
           customer: { firstName, lastName, email: email.trim() || "", phone: phone.trim() || "" },
           items: items.map((i) => ({
@@ -80,16 +96,6 @@ export default function Checkout() {
           paymentMethod: "card",
         });
         clearCart();
-        const hasPhone = !!phone.trim();
-        toast.success(
-          "Thank you for ordering Margaritas Tacos! Your order should be ready in 15–20 minutes.",
-          hasPhone
-            ? { duration: 5000 }
-            : {
-                description: "You didn't leave a phone number, so you won't receive a text when it's ready. Plan to pick up in about 15–20 minutes.",
-                duration: 7000,
-              }
-        );
         setLocation("/");
         return;
       }
@@ -121,18 +127,7 @@ export default function Checkout() {
         const err = await res.json().catch(() => ({})) as { message?: string; error?: string };
         throw new Error(err.error || err.message || "Checkout failed");
       }
-      // Server already saved the order (and charged card if applicable)
       clearCart();
-      const hasPhone = !!phone.trim();
-      toast.success(
-        "Thank you for ordering Margaritas Tacos! Your order should be ready in 15–20 minutes.",
-        hasPhone
-          ? { duration: 5000 }
-          : {
-              description: "You didn't leave a phone number, so you won't receive a text when it's ready. Plan to pick up in about 15–20 minutes.",
-              duration: 7000,
-            }
-      );
       setLocation("/");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
@@ -181,6 +176,35 @@ export default function Checkout() {
       className="min-h-screen flex flex-col md:flex-row"
       style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
     >
+      <AlertDialog open={showPrepTimeDialog} onOpenChange={setShowPrepTimeDialog}>
+        <AlertDialogContent style={{ borderColor: "rgba(44,24,16,0.2)" }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ color: ESPRESSO, fontFamily: "'Oswald', sans-serif" }}>
+              Before you complete checkout
+            </AlertDialogTitle>
+            <AlertDialogDescription style={{ color: ESPRESSO }}>
+              <strong>This order will take 30–40 minutes to make.</strong>{" "}
+              {import.meta.env.VITE_CHECKOUT_API_URL
+                ? "Tap Okay to place your order and complete payment."
+                : "Tap Okay to place your order."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={placing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={placing}
+              onClick={(e) => {
+                e.preventDefault();
+                void submitOrderAfterConfirm();
+              }}
+              style={{ backgroundColor: "#C4622D" }}
+            >
+              Okay
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 shrink-0"
@@ -392,7 +416,7 @@ export default function Checkout() {
         <div className="md:hidden shrink-0 p-4 pt-0">
           <button
             type="button"
-            onClick={handlePlaceOrder}
+            onClick={handlePlaceOrderClick}
             disabled={placing}
             className="w-full py-3 rounded-xl font-bold uppercase tracking-wider text-white disabled:opacity-70 transition-transform active:scale-[0.98]"
             style={{
@@ -448,7 +472,7 @@ export default function Checkout() {
           <div className="p-4">
             <button
               type="button"
-              onClick={handlePlaceOrder}
+              onClick={handlePlaceOrderClick}
               disabled={placing}
               className="w-full py-3 rounded-xl font-bold uppercase tracking-wider text-white disabled:opacity-70 transition-transform active:scale-[0.98]"
               style={{

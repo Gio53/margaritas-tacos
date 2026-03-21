@@ -360,6 +360,8 @@ async function startServer() {
         await writeOrders(orders);
       }
 
+      sendOrderPlacedSms(customer.phone).catch((e) => console.error("Order-placed SMS failed", e));
+
       res.status(201).json(updatedOrder);
     } catch (e) {
       console.error(e);
@@ -402,6 +404,9 @@ async function startServer() {
         orders[idx] = updatedOrder;
         await writeOrders(orders);
       }
+
+      const cust = newOrder.customer as { phone?: string } | undefined;
+      sendOrderPlacedSms(cust?.phone).catch((e) => console.error("Order-placed SMS failed", e));
 
       res.status(201).json(updatedOrder);
     } catch (e) {
@@ -485,6 +490,35 @@ async function startServer() {
     if (!res.ok) {
       const errText = await res.text();
       console.error("Resend email error", res.status, errText);
+    }
+  }
+
+  /** SMS right after customer places an order (Twilio). */
+  async function sendOrderPlacedSms(phone: string | undefined): Promise<void> {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_PHONE_NUMBER;
+    if (!sid || !token || !from || !phone?.trim()) return;
+    const digits = phone.replace(/\D/g, "");
+    const to = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : `+${digits}`;
+    if (to.length < 11) return;
+    const body =
+      "Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete";
+    const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+    const twilioRes = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ To: to, From: from, Body: body }).toString(),
+      }
+    );
+    if (!twilioRes.ok) {
+      const errText = await twilioRes.text();
+      console.error("Twilio order-placed SMS error", twilioRes.status, errText);
     }
   }
 

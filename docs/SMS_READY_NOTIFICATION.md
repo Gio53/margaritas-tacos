@@ -1,12 +1,20 @@
-# Notifications when order is ready
+# SMS notifications (Twilio)
 
-When an order is marked **Ready** in Admin, the server can send the customer an **SMS** (and optionally an email). Right now we use **SMS (Twilio)** as the main notification. Email is optional for later (e.g. ads, promos).
+Customers can receive **two** kinds of texts when Twilio is configured:
+
+1. **Right after they place an order** (if they entered a phone number):  
+   *"Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete"*
+
+2. **When you mark the order Ready** in Admin:  
+   *"Your Margaritas Tacos order is ready for pickup!"*
+
+Email (Resend) is optional for order-ready only — see below.
 
 ---
 
 ## SMS — Twilio (primary)
 
-Set these on the server so customers get a text when their order is ready:
+Set these on the server so customers get texts (order placed + order ready):
 
 | Variable | Description |
 |----------|-------------|
@@ -18,7 +26,8 @@ Set these on the server so customers get a text when their order is ready:
 2. In the [Twilio Console](https://console.twilio.com/): get your **Account SID** and **Auth Token**, and buy a **phone number** (Phone Numbers → Manage → Buy a number).
 3. Add the three env vars above to your server `.env` (or Render/env).
 
-Message the customer receives: **"Your Margaritas Tacos order is ready for pickup!"**
+**Order placed:** *"Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete"*  
+**Order ready:** *"Your Margaritas Tacos order is ready for pickup!"*
 
 ---
 
