@@ -503,7 +503,7 @@ async function startServer() {
     const to = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : `+${digits}`;
     if (to.length < 11) return;
     const body =
-      "Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete";
+      "Thank you for ordering Margaritas Tacos, Your Order will take 20-25 minutes to complete";
     const auth = Buffer.from(`${sid}:${token}`).toString("base64");
     const twilioRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,

@@ -183,7 +183,7 @@ export default function Checkout() {
               Before you complete checkout
             </AlertDialogTitle>
             <AlertDialogDescription style={{ color: ESPRESSO }}>
-              <strong>This order will take 30–40 minutes to make.</strong>{" "}
+              <strong>This order will take 20–25 minutes to make.</strong>{" "}
               {import.meta.env.VITE_CHECKOUT_API_URL
                 ? "Tap Okay to place your order and complete payment."
                 : "Tap Okay to place your order."}

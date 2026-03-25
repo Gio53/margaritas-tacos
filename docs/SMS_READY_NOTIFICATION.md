@@ -3,7 +3,7 @@
 Customers can receive **two** kinds of texts when Twilio is configured:
 
 1. **Right after they place an order** (if they entered a phone number):  
-   *"Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete"*
+   *"Thank you for ordering Margaritas Tacos, Your Order will take 20-25 minutes to complete"*
 
 2. **When you mark the order Ready** in Admin:  
    *"Your Margaritas Tacos order is ready for pickup!"*
@@ -26,7 +26,7 @@ Set these on the server so customers get texts (order placed + order ready):
 2. In the [Twilio Console](https://console.twilio.com/): get your **Account SID** and **Auth Token**, and buy a **phone number** (Phone Numbers → Manage → Buy a number).
 3. Add the three env vars above to your server `.env` (or Render/env).
 
-**Order placed:** *"Thank you for ordering Margaritas Tacos, Your Order will take 30-40 minutes to complete"*  
+**Order placed:** *"Thank you for ordering Margaritas Tacos, Your Order will take 20-25 minutes to complete"*  
 **Order ready:** *"Your Margaritas Tacos order is ready for pickup!"*
 
 ---
