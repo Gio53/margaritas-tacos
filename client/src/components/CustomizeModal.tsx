@@ -2,7 +2,7 @@
 // Customize item modal — quantity, remove ingredients, add extras, ADD TO CART
 // ============================================================
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getOrderOptionsForCategory, SIDE_CUP_LABEL } from "@/data/orderOptions";
+import {
+  getOrderOptionsForCategory,
+  getRequiredChoicesForCategory,
+  SIDE_CUP_LABEL,
+} from "@/data/orderOptions";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { MenuItem } from "@/data/menuData";
@@ -49,13 +53,56 @@ export function CustomizeModal({
   const [removeIngredients, setRemoveIngredients] = useState<string[]>([]);
   const [addExtras, setAddExtras] = useState<OrderExtra[]>([]);
   const [choiceValues, setChoiceValues] = useState<Record<string, string>>({});
+  /** When false, required picks show as a one-line summary + "Change" (all choices filled). */
+  const [requireExpanded, setRequireExpanded] = useState(true);
+  const prevAllFilledRef = useRef(false);
 
   const options = getOrderOptionsForCategory(categoryId);
-  const requiredChoice = options.requiredChoice;
+  const requiredList = useMemo(
+    () => getRequiredChoicesForCategory(categoryId),
+    [categoryId]
+  );
   const hasRemove = options.removeIngredients.length > 0;
   const hasExtras = options.addExtras.length > 0;
-  const requiredChoiceFilled =
-    !requiredChoice || Boolean(choiceValues[requiredChoice.id]?.trim());
+  const allRequiredFilled =
+    requiredList.length === 0 ||
+    requiredList.every((rc) => Boolean(choiceValues[rc.id]?.trim()));
+
+  const choiceSummary = useMemo(() => {
+    if (requiredList.length === 0) return "";
+    return requiredList
+      .map((rc) => {
+        const v = choiceValues[rc.id];
+        return v ? `${rc.label}: ${v}` : "";
+      })
+      .filter(Boolean)
+      .join(" · ");
+  }, [requiredList, choiceValues]);
+
+  useEffect(() => {
+    if (!open) return;
+    prevAllFilledRef.current = false;
+    setRequireExpanded(true);
+  }, [open, categoryId, item.name]);
+
+  useEffect(() => {
+    if (requiredList.length === 0) {
+      setRequireExpanded(true);
+      return;
+    }
+    if (!allRequiredFilled) {
+      setRequireExpanded(true);
+      prevAllFilledRef.current = false;
+    }
+  }, [allRequiredFilled, requiredList.length]);
+
+  useEffect(() => {
+    if (requiredList.length === 0) return;
+    if (allRequiredFilled && !prevAllFilledRef.current) {
+      setRequireExpanded(false);
+    }
+    prevAllFilledRef.current = allRequiredFilled;
+  }, [allRequiredFilled, requiredList.length]);
 
   const toggleRemove = (name: string) => {
     setRemoveIngredients((prev) =>
@@ -84,9 +131,10 @@ export function CustomizeModal({
   const lineTotal = computeLineTotal(item.price, quantity, addExtras, categoryId);
 
   const handleAddToCart = () => {
-    if (!requiredChoiceFilled) {
+    if (!allRequiredFilled) {
+      const missing = requiredList.find((rc) => !choiceValues[rc.id]?.trim());
       toast.error("Please choose an option", {
-        description: requiredChoice?.prompt ?? "Complete all required choices.",
+        description: missing?.prompt ?? "Complete all required choices.",
       });
       return;
     }
@@ -94,10 +142,11 @@ export function CustomizeModal({
       ...e,
       quantity: e.quantity ?? 1,
     }));
-    const choicesPayload =
-      requiredChoice && choiceValues[requiredChoice.id]
-        ? { [requiredChoice.id]: choiceValues[requiredChoice.id] }
-        : undefined;
+    const choicesPayload: Record<string, string> = {};
+    for (const rc of requiredList) {
+      const v = choiceValues[rc.id];
+      if (v?.trim()) choicesPayload[rc.id] = v;
+    }
     addItem({
       categoryId,
       categoryName,
@@ -106,13 +155,15 @@ export function CustomizeModal({
       quantity,
       removeIngredients: [...removeIngredients],
       addExtras: extrasWithQty,
-      ...(choicesPayload && { choices: choicesPayload }),
+      ...(Object.keys(choicesPayload).length > 0 && { choices: choicesPayload }),
     });
     onOpenChange(false);
     setQuantity(1);
     setRemoveIngredients([]);
     setAddExtras([]);
     setChoiceValues({});
+    setRequireExpanded(true);
+    prevAllFilledRef.current = false;
 
     toast.success("Item Added", {
       description: "View your cart or continue shopping.",
@@ -128,14 +179,18 @@ export function CustomizeModal({
     setRemoveIngredients([]);
     setAddExtras([]);
     setChoiceValues({});
+    setRequireExpanded(true);
+    prevAllFilledRef.current = false;
   };
+
+  const showRequiredEditors = requiredList.length > 0 && requireExpanded;
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(open) => {
-        onOpenChange(open);
-        if (!open) resetState();
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) resetState();
       }}
     >
       <DialogContent
@@ -203,45 +258,83 @@ export function CustomizeModal({
             </div>
           </div>
 
-          {/* Required choice (e.g. shell for American tacos) */}
-          {requiredChoice && (
+          {/* Required choices — compact radios; collapse to summary when all chosen */}
+          {requiredList.length > 0 && (
             <div>
-              <h3
-                className="text-sm font-semibold mb-2"
-                style={{ color: CREAM }}
-              >
-                {requiredChoice.prompt}
-              </h3>
-              <RadioGroup
-                value={choiceValues[requiredChoice.id] ?? ""}
-                onValueChange={(v) =>
-                  setChoiceValues((prev) => ({ ...prev, [requiredChoice.id]: v }))
-                }
-                className="space-y-2"
-              >
-                {requiredChoice.options.map((opt) => (
-                  <div
-                    key={opt}
-                    className="flex items-center gap-3 rounded-md border px-3 py-2"
-                    style={{
-                      borderColor: "rgba(255,248,240,0.2)",
-                      backgroundColor: "rgba(255,255,255,0.05)",
-                    }}
-                  >
-                    <RadioGroupItem
-                      value={opt}
-                      id={`${requiredChoice.id}-${opt}`}
-                      className="border-[rgba(255,248,240,0.5)] text-[#E8A838]"
-                    />
-                    <Label
-                      htmlFor={`${requiredChoice.id}-${opt}`}
-                      className="cursor-pointer flex-1 text-[#FFF8F0]"
+              {showRequiredEditors ? (
+                <div className="space-y-3">
+                  {requiredList.map((rc) => (
+                    <div key={rc.id}>
+                      <h3
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: CREAM }}
+                      >
+                        {rc.prompt}
+                      </h3>
+                      <RadioGroup
+                        value={choiceValues[rc.id] ?? ""}
+                        onValueChange={(v) =>
+                          setChoiceValues((prev) => ({ ...prev, [rc.id]: v }))
+                        }
+                        className="space-y-1"
+                      >
+                        {rc.options.map((opt) => (
+                          <div
+                            key={opt}
+                            className="flex items-center gap-2 rounded-md border px-2.5 py-1.5"
+                            style={{
+                              borderColor: "rgba(255,248,240,0.2)",
+                              backgroundColor: "rgba(255,255,255,0.05)",
+                            }}
+                          >
+                            <RadioGroupItem
+                              value={opt}
+                              id={`${rc.id}-${opt}`}
+                              className="border-[rgba(255,248,240,0.5)] text-[#E8A838] shrink-0"
+                            />
+                            <Label
+                              htmlFor={`${rc.id}-${opt}`}
+                              className="cursor-pointer flex-1 text-[#FFF8F0] text-sm leading-snug"
+                            >
+                              {opt}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  ))}
+                  {allRequiredFilled && (
+                    <button
+                      type="button"
+                      onClick={() => setRequireExpanded(false)}
+                      className="text-xs font-semibold uppercase tracking-wide pt-1"
+                      style={{ color: GOLD }}
                     >
-                      {opt}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+                      Done
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="rounded-md border px-3 py-2 flex flex-col gap-1.5"
+                  style={{
+                    borderColor: "rgba(255,248,240,0.2)",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <p className="text-sm" style={{ color: CREAM }}>
+                    {choiceSummary}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRequireExpanded(true)}
+                    className="text-xs font-semibold self-start uppercase tracking-wide"
+                    style={{ color: GOLD }}
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -355,7 +448,7 @@ export function CustomizeModal({
 
           <Button
             onClick={handleAddToCart}
-            disabled={!requiredChoiceFilled}
+            disabled={!allRequiredFilled}
             className="w-full font-bold uppercase tracking-wider text-white border-0 shrink-0 disabled:opacity-50"
             style={{
               backgroundColor: GOLD,

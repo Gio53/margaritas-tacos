@@ -30,7 +30,13 @@ export function orderItemChoicesNote(
     const shell = choices.shell;
     return shell ? `Shell: ${shell}` : "";
   }
-  if (categoryId === "enchiladas" || categoryId === "chilaquiles") {
+  if (categoryId === "enchiladas") {
+    const parts: string[] = [];
+    if (choices.sauce) parts.push(`Sauce: ${choices.sauce}`);
+    if (choices.tortilla) parts.push(`Tortilla: ${choices.tortilla}`);
+    return parts.join("\n\n");
+  }
+  if (categoryId === "chilaquiles") {
     const s = choices.sauce;
     return s ? `Sauce: ${s}` : "";
   }

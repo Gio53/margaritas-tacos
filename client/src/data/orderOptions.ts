@@ -34,7 +34,19 @@ export interface RequiredChoice {
 export interface CategoryOrderOptions {
   removeIngredients: string[];
   addExtras: OrderExtra[];
+  /** Single required pick (backward compatible). */
   requiredChoice?: RequiredChoice;
+  /** Multiple required picks (e.g. sauce + tortilla). Overrides using only `requiredChoice` when both set — prefer one or the other. */
+  requiredChoices?: RequiredChoice[];
+}
+
+/** All required picks for a category (from `requiredChoices` or single `requiredChoice`). */
+export function getRequiredChoicesForCategory(categoryId: string): RequiredChoice[] {
+  const o = categoryOrderOptions[categoryId];
+  if (!o) return [];
+  if (o.requiredChoices?.length) return o.requiredChoices;
+  if (o.requiredChoice) return [o.requiredChoice];
+  return [];
 }
 
 const EXTRAS_2 = [
@@ -108,12 +120,20 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   enchiladas: {
     removeIngredients: ["Lettuce", "Sour cream", "Rice & beans"],
     addExtras: EXTRAS_2,
-    requiredChoice: {
-      id: "sauce",
-      label: "Sauce",
-      prompt: "Choose sauce (required)",
-      options: ["Red sauce", "Green sauce"],
-    },
+    requiredChoices: [
+      {
+        id: "sauce",
+        label: "Sauce",
+        prompt: "Choose sauce (required)",
+        options: ["Red sauce", "Green sauce"],
+      },
+      {
+        id: "tortilla",
+        label: "Tortilla",
+        prompt: "Choose tortilla (required)",
+        options: ["Corn tortillas", "Flour tortillas"],
+      },
+    ],
   },
 };
 
@@ -126,16 +146,21 @@ export function getOrderOptionsForCategory(categoryId: string): CategoryOrderOpt
   );
 }
 
-/** Line item note for cart / tickets (e.g. "Shell: Hard shell"). */
+/** Line item note for cart / tickets (e.g. "Shell: Hard shell · Sauce: Red sauce"). */
 export function formatChoicesLine(
   categoryId: string | undefined,
   choices: Record<string, string> | undefined
 ): string {
   if (!choices || Object.keys(choices).length === 0) return "";
-  const rc = categoryId ? categoryOrderOptions[categoryId]?.requiredChoice : undefined;
-  if (rc) {
-    const v = choices[rc.id];
-    return v ? `${rc.label}: ${v}` : "";
+  const list = categoryId ? getRequiredChoicesForCategory(categoryId) : [];
+  if (list.length > 0) {
+    const parts = list
+      .map((rc) => {
+        const v = choices[rc.id];
+        return v ? `${rc.label}: ${v}` : "";
+      })
+      .filter(Boolean);
+    return parts.join(" · ");
   }
   return Object.entries(choices)
     .map(([k, v]) => `${k}: ${v}`)

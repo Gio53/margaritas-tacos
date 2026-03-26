@@ -9,7 +9,11 @@ import { useOrders } from "@/contexts/OrdersContext";
 import { toast } from "sonner";
 import { menuCategories } from "@/data/menuData";
 import type { MenuItem } from "@/data/menuData";
-import { getOrderOptionsForCategory, formatChoicesLine } from "@/data/orderOptions";
+import {
+  getOrderOptionsForCategory,
+  getRequiredChoicesForCategory,
+  formatChoicesLine,
+} from "@/data/orderOptions";
 import type { OrderExtra } from "@/data/orderOptions";
 import { computeLineTotal } from "@/contexts/CartContext";
 import { formatQuantityLabel } from "@/lib/utils";
@@ -60,6 +64,10 @@ export default function TestOrder() {
     [addCategoryId]
   );
   const options = getOrderOptionsForCategory(addCategoryId);
+  const requiredForAdd = useMemo(
+    () => getRequiredChoicesForCategory(addCategoryId),
+    [addCategoryId]
+  );
 
   const toggleRemove = (name: string) => {
     setAddRemove((prev) =>
@@ -85,9 +93,9 @@ export default function TestOrder() {
 
   const addLine = () => {
     if (!selectedCategory || !addItem) return;
-    const rc = options.requiredChoice;
-    if (rc && !addChoiceValues[rc.id]?.trim()) {
-      toast.error(rc.prompt);
+    const missing = requiredForAdd.find((rc) => !addChoiceValues[rc.id]?.trim());
+    if (missing) {
+      toast.error(missing.prompt);
       return;
     }
     const lineTotal = computeLineTotal(
@@ -96,10 +104,13 @@ export default function TestOrder() {
       addExtras,
       addCategoryId
     );
-    const choices =
-      rc && addChoiceValues[rc.id]
-        ? { [rc.id]: addChoiceValues[rc.id] }
-        : undefined;
+    const choices: Record<string, string> = {};
+    for (const rc of requiredForAdd) {
+      const v = addChoiceValues[rc.id];
+      if (v?.trim()) choices[rc.id] = v;
+    }
+    const choicesPayload =
+      Object.keys(choices).length > 0 ? choices : undefined;
     setLines((prev) => [
       ...prev,
       {
@@ -111,7 +122,7 @@ export default function TestOrder() {
         removeIngredients: [...addRemove],
         addExtras: addExtras.map((e) => ({ ...e, quantity: e.quantity ?? 1 })),
         lineTotal,
-        ...(choices && { choices }),
+        ...(choicesPayload && { choices: choicesPayload }),
       },
     ]);
     setAddItem(null);
@@ -358,22 +369,22 @@ export default function TestOrder() {
 
             {addItem && (
               <>
-                {options.requiredChoice && (
-                  <div className="text-sm space-y-2">
+                {requiredForAdd.map((rc) => (
+                  <div key={rc.id} className="text-sm space-y-1">
                     <p className="font-medium" style={{ color: ESPRESSO }}>
-                      {options.requiredChoice.prompt}
+                      {rc.prompt}
                     </p>
-                    <div className="flex flex-wrap gap-3">
-                      {options.requiredChoice.options.map((opt) => (
+                    <div className="flex flex-wrap gap-2">
+                      {rc.options.map((opt) => (
                         <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
                           <input
                             type="radio"
-                            name={`test-${options.requiredChoice!.id}`}
-                            checked={addChoiceValues[options.requiredChoice!.id] === opt}
+                            name={`test-${rc.id}`}
+                            checked={addChoiceValues[rc.id] === opt}
                             onChange={() =>
                               setAddChoiceValues((prev) => ({
                                 ...prev,
-                                [options.requiredChoice!.id]: opt,
+                                [rc.id]: opt,
                               }))
                             }
                           />
@@ -382,7 +393,7 @@ export default function TestOrder() {
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
                 {options.removeIngredients.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {options.removeIngredients.map((name) => (
