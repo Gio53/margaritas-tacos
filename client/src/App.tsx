@@ -11,6 +11,7 @@ import Order from "./pages/Order";
 import Checkout from "./pages/Checkout";
 import Admin from "./pages/Admin";
 import TestOrder from "./pages/TestOrder";
+import ReceiptLayoutPreview from "./pages/ReceiptLayoutPreview";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/checkout"} component={Checkout} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/test-order"} component={TestOrder} />
+      <Route path={"/receipt-preview"} component={ReceiptLayoutPreview} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

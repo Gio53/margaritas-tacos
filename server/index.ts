@@ -4,6 +4,10 @@ import { createServer } from "http";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
+import {
+  buildCloverLineNameAndNote,
+  type CloverReceiptLineInput,
+} from "../shared/cloverReceiptLayout";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,21 +44,6 @@ interface StoredOrder {
   cloverOrderId?: string;
   cloverSyncStatus?: "pending" | "synced" | "failed";
   cloverError?: string;
-}
-
-/** Match client formatChoicesLine for Clover / stored orders without importing frontend. */
-function orderItemChoicesNote(
-  categoryId: string | undefined,
-  choices: Record<string, string> | undefined
-): string {
-  if (!choices || typeof choices !== "object") return "";
-  if (categoryId === "3-american-tacos") {
-    const shell = choices.shell;
-    return shell ? `Shell: ${shell}` : "";
-  }
-  return Object.entries(choices)
-    .map(([k, v]) => `${k}: ${v}`)
-    .join("; ");
 }
 
 async function readOrders(): Promise<StoredOrder[]> {
@@ -152,37 +141,21 @@ async function startServer() {
       for (const line of orderItems) {
         const qty = Math.max(1, line.quantity ?? 1);
         const lineTotal = line.lineTotal ?? 0;
-        const pricePerUnitCents = Math.round((lineTotal / qty) * 100);
-        const baseName =
-          [line.categoryName, line.itemName].filter(Boolean).join(" — ") || line.itemName || "Item";
-        const mods: string[] = [];
-        const choiceStr = orderItemChoicesNote(line.categoryId, line.choices);
-        if (choiceStr) mods.push(choiceStr);
-        if (line.removeIngredients?.length) mods.push(`No: ${line.removeIngredients.join(", ")}`);
-        if (line.addExtras?.length) {
-          const extras = line.addExtras.map((e: unknown) => {
-            const ex = e as { name?: string; quantity?: number };
-            const exQty = ex?.quantity ?? 1;
-            const exName = String(ex?.name ?? "").trim() || "extra";
-            return `Side of ${exName} ×${exQty}`;
-          }).filter(Boolean);
-          mods.push(`Add: ${extras.join(", ")}`);
-        }
-        const lineNote = mods.join("; ") || undefined;
-        /** Sold as orders of 3: send one Clover line with full line price and no unitQty so the receipt does not repeat quantity as "1 …" plus "1 each/order" under the name. */
-        const isOrderOfThreePlatter =
-          line.categoryName === "3 Mexican Street Tacos" ||
-          line.categoryName === "3 American Tacos";
-        const name =
-          isOrderOfThreePlatter && qty > 1 ? `${baseName} (${qty} orders)` : baseName;
-        const lineBody: Record<string, unknown> = { name, ...(lineNote && { note: lineNote }) };
-        if (isOrderOfThreePlatter) {
-          lineBody.price = Math.round(lineTotal * 100);
-        } else {
-          lineBody.price = pricePerUnitCents;
-          lineBody.unitQty = Math.round(qty * 1000);
-          lineBody.unitName = "each";
-        }
+        const { name, lineNote } = buildCloverLineNameAndNote({
+          categoryId: line.categoryId,
+          categoryName: line.categoryName,
+          itemName: line.itemName,
+          quantity: qty,
+          removeIngredients: line.removeIngredients,
+          addExtras: (line.addExtras ?? []) as CloverReceiptLineInput["addExtras"],
+          choices: line.choices,
+        });
+        /* Full line total, no unitQty — quantity is only in `name` / `note` so Clover does not repeat it in a qty column + "each". */
+        const lineBody: Record<string, unknown> = {
+          name,
+          price: Math.round(lineTotal * 100),
+          ...(lineNote && { note: lineNote }),
+        };
         const lineRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
           method: "POST",
           headers: {
