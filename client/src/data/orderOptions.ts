@@ -21,9 +21,20 @@ export function formatAddExtra(e: OrderExtra): string {
 
 export { SIDE_CUP_LABEL };
 
+/** One required pick (e.g. shell type) before add to cart. */
+export interface RequiredChoice {
+  id: string;
+  /** Short label for receipts/cart, e.g. "Shell" */
+  label: string;
+  /** Heading in the customize modal */
+  prompt: string;
+  options: string[];
+}
+
 export interface CategoryOrderOptions {
   removeIngredients: string[];
   addExtras: OrderExtra[];
+  requiredChoice?: RequiredChoice;
 }
 
 const EXTRAS_2 = [
@@ -41,6 +52,12 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   "3-american-tacos": {
     removeIngredients: ["Lettuce", "Cheese", "Sour Cream", "Tomato"],
     addExtras: EXTRAS_2,
+    requiredChoice: {
+      id: "shell",
+      label: "Shell",
+      prompt: "Choose shell (required)",
+      options: ["Hard shell", "Soft shell"],
+    },
   },
   tostadas: {
     removeIngredients: ["Black beans", "Cheese", "Lettuce", "Tomato", "Sour cream", "Avocado"],
@@ -95,4 +112,20 @@ export function getOrderOptionsForCategory(categoryId: string): CategoryOrderOpt
       addExtras: EXTRAS_2,
     }
   );
+}
+
+/** Line item note for cart / tickets (e.g. "Shell: Hard shell"). */
+export function formatChoicesLine(
+  categoryId: string | undefined,
+  choices: Record<string, string> | undefined
+): string {
+  if (!choices || Object.keys(choices).length === 0) return "";
+  const rc = categoryId ? categoryOrderOptions[categoryId]?.requiredChoice : undefined;
+  if (rc) {
+    const v = choices[rc.id];
+    return v ? `${rc.label}: ${v}` : "";
+  }
+  return Object.entries(choices)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(" · ");
 }

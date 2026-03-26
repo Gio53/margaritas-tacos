@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCart } from "@/contexts/CartContext";
-import { formatAddExtra } from "@/data/orderOptions";
+import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -97,6 +97,8 @@ export function CartModal({
                     style={{ color: "rgba(44,24,16,0.75)" }}
                   >
                     {line.itemName}
+                    {formatChoicesLine(line.categoryId, line.choices) &&
+                      ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
                     {line.removeIngredients.length > 0 &&
                       ` • No: ${line.removeIngredients.join(", ")}`}
                     {line.addExtras.length > 0 &&

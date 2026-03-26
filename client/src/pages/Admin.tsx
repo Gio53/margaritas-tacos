@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
-import { formatAddExtra } from "@/data/orderOptions";
+import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { ClipboardList, Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
@@ -197,8 +197,16 @@ function OrderCard({
             <p className="font-semibold" style={{ color: ESPRESSO }}>
               {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryName, line.quantity)}
             </p>
-            {(line.removeIngredients.length > 0 || line.addExtras.length > 0) && (
+            {(formatChoicesLine(line.categoryId, line.choices) ||
+              line.removeIngredients.length > 0 ||
+              line.addExtras.length > 0) && (
               <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                {formatChoicesLine(line.categoryId, line.choices) && (
+                  <>{formatChoicesLine(line.categoryId, line.choices)}</>
+                )}
+                {formatChoicesLine(line.categoryId, line.choices) &&
+                  (line.removeIngredients.length > 0 || line.addExtras.length > 0) &&
+                  " · "}
                 {line.removeIngredients.length > 0 && (
                   <>No: {line.removeIngredients.join(", ")}</>
                 )}

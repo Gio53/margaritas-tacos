@@ -22,12 +22,14 @@ interface StoredOrder {
   status: string;
   customer?: { firstName?: string; lastName?: string; email?: string; phone?: string };
   items?: Array<{
+    categoryId?: string;
     categoryName?: string;
     itemName?: string;
     quantity?: number;
     removeIngredients?: string[];
     addExtras?: unknown[];
     lineTotal?: number;
+    choices?: Record<string, string>;
   }>;
   subtotal?: number;
   tax?: number;
@@ -38,6 +40,21 @@ interface StoredOrder {
   cloverOrderId?: string;
   cloverSyncStatus?: "pending" | "synced" | "failed";
   cloverError?: string;
+}
+
+/** Match client formatChoicesLine for Clover / stored orders without importing frontend. */
+function orderItemChoicesNote(
+  categoryId: string | undefined,
+  choices: Record<string, string> | undefined
+): string {
+  if (!choices || typeof choices !== "object") return "";
+  if (categoryId === "3-american-tacos") {
+    const shell = choices.shell;
+    return shell ? `Shell: ${shell}` : "";
+  }
+  return Object.entries(choices)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("; ");
 }
 
 async function readOrders(): Promise<StoredOrder[]> {
@@ -138,6 +155,8 @@ async function startServer() {
         const pricePerUnitCents = Math.round((lineTotal / qty) * 100);
         const name = [line.categoryName, line.itemName].filter(Boolean).join(" — ") || line.itemName || "Item";
         const mods: string[] = [];
+        const choiceStr = orderItemChoicesNote(line.categoryId, line.choices);
+        if (choiceStr) mods.push(choiceStr);
         if (line.removeIngredients?.length) mods.push(`No: ${line.removeIngredients.join(", ")}`);
         if (line.addExtras?.length) {
           const extras = line.addExtras.map((e: unknown) => {

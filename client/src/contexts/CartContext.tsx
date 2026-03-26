@@ -14,6 +14,8 @@ export interface CartLineItem {
   quantity: number;
   removeIngredients: string[];
   addExtras: OrderExtra[];
+  /** Required picks per category (e.g. shell type for American tacos) */
+  choices?: Record<string, string>;
   /** Cached total for this line (basePrice * quantity + sum of extras * quantity) */
   lineTotal: number;
 }

@@ -10,7 +10,7 @@ import { useOrders } from "@/contexts/OrdersContext";
 import { ChevronLeft, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { isOpen, CLOSED_MESSAGE } from "@/utils/hours";
-import { formatAddExtra } from "@/data/orderOptions";
+import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import {
   AlertDialog,
@@ -82,12 +82,14 @@ export default function Checkout() {
         await addOrder({
           customer: { firstName, lastName, email: email.trim() || "", phone: phone.trim() || "" },
           items: items.map((i) => ({
+            categoryId: i.categoryId,
             categoryName: i.categoryName,
             itemName: i.itemName,
             quantity: i.quantity,
             removeIngredients: i.removeIngredients,
             addExtras: i.addExtras,
             lineTotal: i.lineTotal,
+            ...(i.choices && Object.keys(i.choices).length > 0 && { choices: i.choices }),
           })),
           subtotal,
           tax,
@@ -109,12 +111,14 @@ export default function Checkout() {
           customer: { firstName, lastName, email: email.trim() || "", phone: phone.trim() || "" },
           card: { number: cardNumber.replace(/\D/g, ""), expiry, cvc },
           items: items.map((i) => ({
+            categoryId: i.categoryId,
             categoryName: i.categoryName,
             itemName: i.itemName,
             quantity: i.quantity,
             removeIngredients: i.removeIngredients,
             addExtras: i.addExtras,
             lineTotal: i.lineTotal,
+            ...(i.choices && Object.keys(i.choices).length > 0 && { choices: i.choices }),
           })),
           subtotal,
           tax,
@@ -257,6 +261,8 @@ export default function Checkout() {
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
                       Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
+                      {formatChoicesLine(line.categoryId, line.choices) &&
+                        ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
                       {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                       {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                     </p>
@@ -448,6 +454,8 @@ export default function Checkout() {
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
                   Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
+                  {formatChoicesLine(line.categoryId, line.choices) &&
+                    ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
                   {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                   {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                 </p>

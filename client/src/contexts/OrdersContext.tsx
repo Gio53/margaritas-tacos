@@ -12,12 +12,14 @@ const API_BASE = import.meta.env.VITE_ORDERS_API_URL ?? "";
 export type OrderStatus = "pending" | "ready" | "completed";
 
 export interface OrderItem {
+  categoryId?: string;
   categoryName: string;
   itemName: string;
   quantity: number;
   removeIngredients: string[];
   addExtras: OrderExtra[];
   lineTotal: number;
+  choices?: Record<string, string>;
 }
 
 export interface PlacedOrder {

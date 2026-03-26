@@ -9,7 +9,7 @@ import { useOrders } from "@/contexts/OrdersContext";
 import { toast } from "sonner";
 import { menuCategories } from "@/data/menuData";
 import type { MenuItem } from "@/data/menuData";
-import { getOrderOptionsForCategory } from "@/data/orderOptions";
+import { getOrderOptionsForCategory, formatChoicesLine } from "@/data/orderOptions";
 import type { OrderExtra } from "@/data/orderOptions";
 import { computeLineTotal } from "@/contexts/CartContext";
 import { formatQuantityLabel } from "@/lib/utils";
@@ -31,6 +31,7 @@ interface TestOrderLine {
   removeIngredients: string[];
   addExtras: OrderExtra[];
   lineTotal: number;
+  choices?: Record<string, string>;
 }
 
 export default function TestOrder() {
@@ -52,6 +53,7 @@ export default function TestOrder() {
   const [addQty, setAddQty] = useState(1);
   const [addRemove, setAddRemove] = useState<string[]>([]);
   const [addExtras, setAddExtras] = useState<OrderExtra[]>([]);
+  const [addChoiceValues, setAddChoiceValues] = useState<Record<string, string>>({});
 
   const selectedCategory = useMemo(
     () => menuCategories.find((c) => c.id === addCategoryId) ?? null,
@@ -83,12 +85,21 @@ export default function TestOrder() {
 
   const addLine = () => {
     if (!selectedCategory || !addItem) return;
+    const rc = options.requiredChoice;
+    if (rc && !addChoiceValues[rc.id]?.trim()) {
+      toast.error("Choose shell (required)");
+      return;
+    }
     const lineTotal = computeLineTotal(
       addItem.price,
       addQty,
       addExtras,
       addCategoryId
     );
+    const choices =
+      rc && addChoiceValues[rc.id]
+        ? { [rc.id]: addChoiceValues[rc.id] }
+        : undefined;
     setLines((prev) => [
       ...prev,
       {
@@ -100,12 +111,14 @@ export default function TestOrder() {
         removeIngredients: [...addRemove],
         addExtras: addExtras.map((e) => ({ ...e, quantity: e.quantity ?? 1 })),
         lineTotal,
+        ...(choices && { choices }),
       },
     ]);
     setAddItem(null);
     setAddQty(1);
     setAddRemove([]);
     setAddExtras([]);
+    setAddChoiceValues({});
   };
 
   const removeLine = (index: number) => {
@@ -134,12 +147,14 @@ export default function TestOrder() {
           phone: customerPhone.trim() || "555-000-0000",
         },
         items: lines.map((l) => ({
+          categoryId: l.categoryId,
           categoryName: l.categoryName,
           itemName: l.itemName,
           quantity: l.quantity,
           removeIngredients: l.removeIngredients,
           addExtras: l.addExtras,
           lineTotal: l.lineTotal,
+          ...(l.choices && Object.keys(l.choices).length > 0 && { choices: l.choices }),
         })),
         subtotal,
         tax,
@@ -291,6 +306,7 @@ export default function TestOrder() {
                   setAddItem(null);
                   setAddRemove([]);
                   setAddExtras([]);
+                  setAddChoiceValues({});
                 }}
                 className="rounded-lg border px-3 py-2 text-sm flex-1 min-w-[140px]"
               >
@@ -310,6 +326,7 @@ export default function TestOrder() {
                   setAddItem(item ?? null);
                   setAddRemove([]);
                   setAddExtras([]);
+                  setAddChoiceValues({});
                 }}
                 className="rounded-lg border px-3 py-2 text-sm flex-1 min-w-[140px]"
               >
@@ -341,6 +358,31 @@ export default function TestOrder() {
 
             {addItem && (
               <>
+                {options.requiredChoice && (
+                  <div className="text-sm space-y-2">
+                    <p className="font-medium" style={{ color: ESPRESSO }}>
+                      {options.requiredChoice.prompt}
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {options.requiredChoice.options.map((opt) => (
+                        <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`test-${options.requiredChoice!.id}`}
+                            checked={addChoiceValues[options.requiredChoice!.id] === opt}
+                            onChange={() =>
+                              setAddChoiceValues((prev) => ({
+                                ...prev,
+                                [options.requiredChoice!.id]: opt,
+                              }))
+                            }
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {options.removeIngredients.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {options.removeIngredients.map((name) => (
@@ -419,6 +461,11 @@ export default function TestOrder() {
                       <span className="font-medium">
                         {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryId, line.quantity)}
                       </span>
+                      {formatChoicesLine(line.categoryId, line.choices) && (
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {formatChoicesLine(line.categoryId, line.choices)}
+                        </p>
+                      )}
                       {(line.removeIngredients.length > 0 || line.addExtras.length > 0) && (
                         <p className="text-xs text-gray-600 mt-0.5">
                           {line.removeIngredients.length > 0 && `No: ${line.removeIngredients.join(", ")}`}

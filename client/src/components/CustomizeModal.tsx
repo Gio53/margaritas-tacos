@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getOrderOptionsForCategory, SIDE_CUP_LABEL } from "@/data/orderOptions";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { MenuItem } from "@/data/menuData";
 import type { OrderExtra } from "@/data/orderOptions";
 import { useCart, computeLineTotal } from "@/contexts/CartContext";
@@ -46,10 +48,14 @@ export function CustomizeModal({
   const [quantity, setQuantity] = useState(1);
   const [removeIngredients, setRemoveIngredients] = useState<string[]>([]);
   const [addExtras, setAddExtras] = useState<OrderExtra[]>([]);
+  const [choiceValues, setChoiceValues] = useState<Record<string, string>>({});
 
   const options = getOrderOptionsForCategory(categoryId);
+  const requiredChoice = options.requiredChoice;
   const hasRemove = options.removeIngredients.length > 0;
   const hasExtras = options.addExtras.length > 0;
+  const requiredChoiceFilled =
+    !requiredChoice || Boolean(choiceValues[requiredChoice.id]?.trim());
 
   const toggleRemove = (name: string) => {
     setRemoveIngredients((prev) =>
@@ -78,10 +84,20 @@ export function CustomizeModal({
   const lineTotal = computeLineTotal(item.price, quantity, addExtras, categoryId);
 
   const handleAddToCart = () => {
+    if (!requiredChoiceFilled) {
+      toast.error("Please choose an option", {
+        description: requiredChoice?.prompt ?? "Complete all required choices.",
+      });
+      return;
+    }
     const extrasWithQty = addExtras.map((e) => ({
       ...e,
       quantity: e.quantity ?? 1,
     }));
+    const choicesPayload =
+      requiredChoice && choiceValues[requiredChoice.id]
+        ? { [requiredChoice.id]: choiceValues[requiredChoice.id] }
+        : undefined;
     addItem({
       categoryId,
       categoryName,
@@ -90,11 +106,13 @@ export function CustomizeModal({
       quantity,
       removeIngredients: [...removeIngredients],
       addExtras: extrasWithQty,
+      ...(choicesPayload && { choices: choicesPayload }),
     });
     onOpenChange(false);
     setQuantity(1);
     setRemoveIngredients([]);
     setAddExtras([]);
+    setChoiceValues({});
 
     toast.success("Item Added", {
       description: "View your cart or continue shopping.",
@@ -109,6 +127,7 @@ export function CustomizeModal({
     setQuantity(1);
     setRemoveIngredients([]);
     setAddExtras([]);
+    setChoiceValues({});
   };
 
   return (
@@ -183,6 +202,48 @@ export function CustomizeModal({
               </button>
             </div>
           </div>
+
+          {/* Required choice (e.g. shell for American tacos) */}
+          {requiredChoice && (
+            <div>
+              <h3
+                className="text-sm font-semibold mb-2"
+                style={{ color: CREAM }}
+              >
+                {requiredChoice.prompt}
+              </h3>
+              <RadioGroup
+                value={choiceValues[requiredChoice.id] ?? ""}
+                onValueChange={(v) =>
+                  setChoiceValues((prev) => ({ ...prev, [requiredChoice.id]: v }))
+                }
+                className="space-y-2"
+              >
+                {requiredChoice.options.map((opt) => (
+                  <div
+                    key={opt}
+                    className="flex items-center gap-3 rounded-md border px-3 py-2"
+                    style={{
+                      borderColor: "rgba(255,248,240,0.2)",
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <RadioGroupItem
+                      value={opt}
+                      id={`${requiredChoice.id}-${opt}`}
+                      className="border-[rgba(255,248,240,0.5)] text-[#E8A838]"
+                    />
+                    <Label
+                      htmlFor={`${requiredChoice.id}-${opt}`}
+                      className="cursor-pointer flex-1 text-[#FFF8F0]"
+                    >
+                      {opt}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          )}
 
           {/* Remove Ingredients (Optional) */}
           {hasRemove && (
@@ -294,7 +355,8 @@ export function CustomizeModal({
 
           <Button
             onClick={handleAddToCart}
-            className="w-full font-bold uppercase tracking-wider text-white border-0 shrink-0"
+            disabled={!requiredChoiceFilled}
+            className="w-full font-bold uppercase tracking-wider text-white border-0 shrink-0 disabled:opacity-50"
             style={{
               backgroundColor: GOLD,
               fontFamily: "'Oswald', sans-serif",
