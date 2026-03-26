@@ -195,7 +195,7 @@ function OrderCard({
         {order.items.map((line, idx) => (
           <div key={idx} className="text-sm">
             <p className="font-semibold" style={{ color: ESPRESSO }}>
-              {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryName, line.quantity)}
+              {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity)}
             </p>
             {(formatChoicesLine(line.categoryId, line.choices) ||
               line.removeIngredients.length > 0 ||

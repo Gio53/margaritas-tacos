@@ -153,7 +153,8 @@ async function startServer() {
         const qty = Math.max(1, line.quantity ?? 1);
         const lineTotal = line.lineTotal ?? 0;
         const pricePerUnitCents = Math.round((lineTotal / qty) * 100);
-        const name = [line.categoryName, line.itemName].filter(Boolean).join(" — ") || line.itemName || "Item";
+        const baseName =
+          [line.categoryName, line.itemName].filter(Boolean).join(" — ") || line.itemName || "Item";
         const mods: string[] = [];
         const choiceStr = orderItemChoicesNote(line.categoryId, line.choices);
         if (choiceStr) mods.push(choiceStr);
@@ -161,28 +162,34 @@ async function startServer() {
         if (line.addExtras?.length) {
           const extras = line.addExtras.map((e: unknown) => {
             const ex = e as { name?: string; quantity?: number };
-            const qty = ex?.quantity ?? 1;
-            const name = String(ex?.name ?? "").trim() || "extra";
-            return `Side of ${name} ×${qty}`;
+            const exQty = ex?.quantity ?? 1;
+            const exName = String(ex?.name ?? "").trim() || "extra";
+            return `Side of ${exName} ×${exQty}`;
           }).filter(Boolean);
           mods.push(`Add: ${extras.join(", ")}`);
         }
         const lineNote = mods.join("; ") || undefined;
-        // Mexican Street Tacos: receipt shows "1 order" / "2 orders" instead of "1 each" / "2 each"
-        const unitName = line.categoryName === "3 Mexican Street Tacos" ? "order" : "each";
+        /** Sold as orders of 3: send one Clover line with full line price and no unitQty so the receipt does not repeat quantity as "1 …" plus "1 each/order" under the name. */
+        const isOrderOfThreePlatter =
+          line.categoryName === "3 Mexican Street Tacos" ||
+          line.categoryName === "3 American Tacos";
+        const name =
+          isOrderOfThreePlatter && qty > 1 ? `${baseName} (${qty} orders)` : baseName;
+        const lineBody: Record<string, unknown> = { name, ...(lineNote && { note: lineNote }) };
+        if (isOrderOfThreePlatter) {
+          lineBody.price = Math.round(lineTotal * 100);
+        } else {
+          lineBody.price = pricePerUnitCents;
+          lineBody.unitQty = Math.round(qty * 1000);
+          lineBody.unitName = "each";
+        }
         const lineRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${CLOVER_API_TOKEN}`,
           },
-          body: JSON.stringify({
-            name,
-            price: pricePerUnitCents,
-            unitQty: Math.round(qty * 1000),
-            unitName,
-            ...(lineNote && { note: lineNote }),
-          }),
+          body: JSON.stringify(lineBody),
         });
         if (!lineRes.ok) {
           const errText = await lineRes.text();
