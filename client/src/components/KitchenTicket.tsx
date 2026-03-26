@@ -1,106 +1,188 @@
 // ============================================================
-// Kitchen Ticket — printable receipt for cooks
+// Kitchen Ticket — printable ticket (UberEats / Clover–style blocks)
 // ============================================================
 
-import type { PlacedOrder } from "@/contexts/OrdersContext";
+import type { PlacedOrder, OrderItem } from "@/contexts/OrdersContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 
 function formatTime(ts: number) {
   const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString();
+  return new Date(ts).toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatTicketDateTime(ts: number): string {
+  const d = new Date(ts);
+  const dateStr = d.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  return `${dateStr} ${formatTime(ts)}`;
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-/** Standalone HTML for receipt — print in a new window so only one page feeds (no extra paper) */
-export function getTicketPrintHtml(order: PlacedOrder): string {
-  const orderId = order.id.replace(/^order-/, "").slice(0, 12).toUpperCase();
-  const dateStr = formatDate(order.createdAt);
-  const timeStr = formatTime(order.createdAt);
-  const customerPhone = order.customer.phone || "—";
-  const itemsHtml = order.items
-    .map(
-      (line) =>
-        `<div style="margin-bottom: 0.75rem; font-size: 14px;">
-          <p style="font-weight: bold; margin: 0 0 2px 0;">${escapeHtml(formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity))} × ${escapeHtml(line.categoryName)} — ${escapeHtml(line.itemName)}</p>
-          ${formatChoicesLine(line.categoryId, line.choices) ? `<p style="font-size: 12px; color: #374151; margin: 0 0 2px 0;">${escapeHtml(formatChoicesLine(line.categoryId, line.choices))}</p>` : ""}
-          ${line.removeIngredients.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0 0 2px 0;">NO: ${escapeHtml(line.removeIngredients.join(", "))}</p>` : ""}
-          ${line.addExtras.length > 0 ? `<p style="font-size: 12px; color: #374151; margin: 0;">Add: ${escapeHtml(line.addExtras.map(formatAddExtra).join(", "))}</p>` : ""}
-        </div>`
-    )
-    .join("");
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Ticket</title>
-<style>
+function orderShortId(order: PlacedOrder): string {
+  return order.id.replace(/^order-/, "").slice(0, 8).toUpperCase();
+}
+
+function itemBlockHtml(line: OrderItem, index: number): string {
+  const num = String(index + 1);
+  const title = [line.categoryName, line.itemName].filter(Boolean).join(" — ");
+  const qtyLine = formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity);
+  const choice = formatChoicesLine(line.categoryId, line.choices);
+  const noLine =
+    line.removeIngredients.length > 0
+      ? `NO: ${escapeHtml(line.removeIngredients.join(", "))}`
+      : "";
+  const addLine =
+    line.addExtras.length > 0
+      ? `Add: ${escapeHtml(line.addExtras.map(formatAddExtra).join(", "))}`
+      : "";
+
+  return `<div class="kt-item">
+  <div class="kt-item-num">${escapeHtml(num)}</div>
+  <div class="kt-item-body">
+    <p class="kt-item-title">${escapeHtml(title)}</p>
+    <p class="kt-item-qty">${escapeHtml(qtyLine)}</p>
+    ${choice ? `<p class="kt-item-mod">${escapeHtml(choice)}</p>` : ""}
+    ${noLine ? `<p class="kt-item-mod">${noLine}</p>` : ""}
+    ${addLine ? `<p class="kt-item-mod">${addLine}</p>` : ""}
+  </div>
+</div>
+<div class="kt-dash">--------------------------------</div>`;
+}
+
+const ticketStyles = `
 *{margin:0;padding:0;box-sizing:border-box}
 @page{margin:0;size:72mm auto}
 html,body{margin:0;padding:0;background:#fff}
-body{font-family:sans-serif;padding:4px 8px 8px;width:72mm;max-width:72mm}
-h1{font-size:18px;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
-.meta{font-size:14px;margin-bottom:12px}
-.customer{border-top:1px solid #000;padding-top:8px;margin-bottom:12px;font-size:14px}
-.customer p{margin-bottom:2px}
-.total{border-top:2px solid #000;margin-top:12px;padding-top:8px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between}
-.pickup{font-size:12px;color:#374151;margin-top:8px}
-</style>
+body{font-family:'Segoe UI',Helvetica,Arial,sans-serif;padding:6px 8px;width:72mm;max-width:72mm;font-size:13px;line-height:1.35;color:#000}
+.kt-order-head{font-size:14px;font-weight:800;margin-bottom:4px;line-height:1.25}
+.kt-source,.kt-times,.kt-customer,.kt-server{font-size:12px;margin-bottom:3px}
+.kt-customer{margin-top:6px}
+.kt-server{font-weight:700;margin-top:4px}
+.kt-dash{color:#000;letter-spacing:-0.05em;margin:8px 0;font-size:11px;overflow:hidden}
+.kt-items{margin:6px 0}
+.kt-item{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
+.kt-item-num{font-weight:800;font-size:14px;min-width:1em;flex-shrink:0;line-height:1.25}
+.kt-item-body{flex:1;min-width:0}
+.kt-item-title{font-weight:700;font-size:13px;margin-bottom:2px}
+.kt-item-qty{font-size:12px;margin-bottom:2px}
+.kt-item-mod{font-size:11px;color:#111;margin-bottom:2px;padding-left:0}
+.kt-total{border-top:2px solid #000;margin-top:10px;padding-top:8px;font-size:15px;font-weight:800;display:flex;justify-content:space-between}
+`;
+
+/** Standalone HTML for receipt — print in a new window */
+export function getTicketPrintHtml(order: PlacedOrder): string {
+  const oid = orderShortId(order);
+  const pickup = order.pickupAddress || "—";
+  const placed = formatTicketDateTime(order.createdAt);
+  const customer = `${order.customer.firstName} ${order.customer.lastName}`.trim();
+  const phone = order.customer.phone?.trim() || "—";
+
+  const itemsHtml = order.items.map((line, i) => itemBlockHtml(line, i)).join("\n");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Ticket</title>
+<style>${ticketStyles}</style>
 </head><body>
-<h1>MARGARITAS TACOS — KITCHEN TICKET</h1>
-<div class="meta"><p><strong>Order #${escapeHtml(orderId)}</strong></p><p>${escapeHtml(dateStr)} · ${timeStr}</p></div>
-<div class="customer"><p><strong>${escapeHtml(order.customer.firstName)} ${escapeHtml(order.customer.lastName)}</strong></p><p>${escapeHtml(customerPhone)}</p></div>
-<div class="items">${itemsHtml}</div>
-<div class="total"><span>TOTAL</span><span>$${order.total.toFixed(2)}</span></div>
-<p class="pickup">Pickup: ${escapeHtml(order.pickupAddress)}</p>
+<p class="kt-order-head">ORDER: ${escapeHtml(oid)} (${escapeHtml(pickup)})</p>
+<p class="kt-source">Source: Margaritas online</p>
+<p class="kt-times">Placed: ${escapeHtml(placed)}</p>
+<div class="kt-dash">--------------------------------</div>
+<p class="kt-customer">Customer: ${escapeHtml(customer)}${phone !== "—" ? ` (${escapeHtml(phone)})` : ""}</p>
+<p class="kt-server">Server: WEB ORDER</p>
+<div class="kt-dash">--------------------------------</div>
+<div class="kt-items">${itemsHtml}</div>
+<div class="kt-total"><span>TOTAL</span><span>$${order.total.toFixed(2)}</span></div>
 </body></html>`;
 }
 
-export default function KitchenTicket({ order }: { order: PlacedOrder }) {
+function TicketItem({ line, index }: { line: OrderItem; index: number }) {
+  const title = [line.categoryName, line.itemName].filter(Boolean).join(" — ");
+  const qtyLine = formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity);
+  const choice = formatChoicesLine(line.categoryId, line.choices);
+
   return (
     <>
-      <div className="kitchen-ticket bg-white text-black p-6 max-w-md mx-auto font-sans">
-        <h1 className="text-2xl font-bold border-b-2 border-black pb-2 mb-3">
-          MARGARITAS TACOS — KITCHEN TICKET
-        </h1>
-        <div className="space-y-1 text-lg mb-4">
-          <p className="font-bold">Order #{order.id.replace(/^order-/, "").slice(0, 12).toUpperCase()}</p>
-          <p>{formatDate(order.createdAt)} · {formatTime(order.createdAt)}</p>
+      <div className="flex gap-2 items-start mb-1">
+        <span className="font-extrabold text-base shrink-0 w-5 text-right">{index + 1}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-sm leading-tight">{title}</p>
+          <p className="text-xs text-black mt-0.5">{qtyLine}</p>
+          {choice && <p className="text-xs text-gray-800 mt-0.5">{choice}</p>}
+          {line.removeIngredients.length > 0 && (
+            <p className="text-xs text-gray-800 mt-0.5">
+              NO: {line.removeIngredients.join(", ")}
+            </p>
+          )}
+          {line.addExtras.length > 0 && (
+            <p className="text-xs text-gray-800 mt-0.5">
+              Add: {line.addExtras.map(formatAddExtra).join(", ")}
+            </p>
+          )}
         </div>
-        <div className="border-t border-black pt-3 mb-4">
-          <p className="font-bold text-lg">{order.customer.firstName} {order.customer.lastName}</p>
-          <p className="text-base">{order.customer.phone}</p>
-        </div>
-        <div className="border-t border-black pt-3 space-y-3">
+      </div>
+      <p className="text-gray-500 text-[10px] tracking-tighter my-2 overflow-hidden leading-none">
+        --------------------------------
+      </p>
+    </>
+  );
+}
+
+export default function KitchenTicket({ order }: { order: PlacedOrder }) {
+  const oid = orderShortId(order);
+  const placed = formatTicketDateTime(order.createdAt);
+  const customer = `${order.customer.firstName} ${order.customer.lastName}`.trim();
+  const phone = order.customer.phone?.trim();
+
+  return (
+    <>
+      <div className="kitchen-ticket bg-white text-black p-4 max-w-md mx-auto font-sans text-sm">
+        <p className="font-extrabold text-base leading-tight mb-1">
+          ORDER: {oid} ({order.pickupAddress})
+        </p>
+        <p>Source: Margaritas online</p>
+        <p className="mt-0.5">Placed: {placed}</p>
+        <p className="text-gray-500 text-[10px] tracking-tighter my-2 overflow-hidden leading-none">
+          --------------------------------
+        </p>
+        <p>
+          Customer: {customer}
+          {phone ? ` (${phone})` : ""}
+        </p>
+        <p className="font-bold mt-1">Server: WEB ORDER</p>
+        <p className="text-gray-500 text-[10px] tracking-tighter my-2 overflow-hidden leading-none">
+          --------------------------------
+        </p>
+        <div className="space-y-0">
           {order.items.map((line, idx) => (
-            <div key={idx} className="text-base">
-              <p className="font-bold">
-                {formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity)} × {line.categoryName} — {line.itemName}
-              </p>
-              {formatChoicesLine(line.categoryId, line.choices) && (
-                <p className="text-sm text-gray-700">{formatChoicesLine(line.categoryId, line.choices)}</p>
-              )}
-              {line.removeIngredients.length > 0 && (
-                <p className="text-sm text-gray-700">NO: {line.removeIngredients.join(", ")}</p>
-              )}
-              {line.addExtras.length > 0 && (
-                <p className="text-sm text-gray-700">Add: {line.addExtras.map(formatAddExtra).join(", ")}</p>
-              )}
-            </div>
+            <TicketItem key={idx} line={line} index={idx} />
           ))}
         </div>
-        <div className="border-t-2 border-black mt-4 pt-3 flex justify-between text-lg font-bold">
+        <div className="border-t-2 border-black mt-3 pt-2 flex justify-between text-base font-extrabold">
           <span>TOTAL</span>
           <span>${order.total.toFixed(2)}</span>
         </div>
-        <p className="text-sm mt-4 text-gray-700">Pickup: {order.pickupAddress}</p>
       </div>
       <style>{`
         @media print {
-          /* Prevent extra pages: only one page of content */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -112,7 +194,6 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
             size: auto;
             margin: 12mm;
           }
-          /* Hide everything except the ticket */
           body * { visibility: hidden !important; }
           .kitchen-ticket, .kitchen-ticket * { visibility: visible !important; }
           .kitchen-ticket {

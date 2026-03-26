@@ -66,6 +66,12 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   chilaquiles: {
     removeIngredients: ["Sour cream", "Cotija cheese"],
     addExtras: EXTRAS_2,
+    requiredChoice: {
+      id: "sauce",
+      label: "Sauce",
+      prompt: "Choose sauce (required)",
+      options: ["Red sauce", "Green sauce"],
+    },
   },
   "rice-bowls": {
     removeIngredients: ["Black beans", "Cheese", "Lettuce", "Pico de gallo", "Sour cream", "Guacamole"],
@@ -102,6 +108,12 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   enchiladas: {
     removeIngredients: ["Lettuce", "Sour cream", "Rice & beans"],
     addExtras: EXTRAS_2,
+    requiredChoice: {
+      id: "sauce",
+      label: "Sauce",
+      prompt: "Choose sauce (required)",
+      options: ["Red sauce", "Green sauce"],
+    },
   },
 };
 

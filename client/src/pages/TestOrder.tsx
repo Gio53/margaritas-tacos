@@ -87,7 +87,7 @@ export default function TestOrder() {
     if (!selectedCategory || !addItem) return;
     const rc = options.requiredChoice;
     if (rc && !addChoiceValues[rc.id]?.trim()) {
-      toast.error("Choose shell (required)");
+      toast.error(rc.prompt);
       return;
     }
     const lineTotal = computeLineTotal(

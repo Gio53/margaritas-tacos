@@ -30,6 +30,10 @@ export function orderItemChoicesNote(
     const shell = choices.shell;
     return shell ? `Shell: ${shell}` : "";
   }
+  if (categoryId === "enchiladas" || categoryId === "chilaquiles") {
+    const s = choices.sauce;
+    return s ? `Sauce: ${s}` : "";
+  }
   return Object.entries(choices)
     .map(([k, v]) => `${k}: ${v}`)
     .join("; ");
