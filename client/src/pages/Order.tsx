@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { menuCategories } from "@/data/menuData";
 import type { MenuItem } from "@/data/menuData";
 import { useCart } from "@/contexts/CartContext";
+import { useMenuAvailability } from "@/contexts/MenuAvailabilityContext";
 import { CustomizeModal } from "@/components/CustomizeModal";
 import { CartPanel } from "@/components/CartPanel";
 import { ChevronLeft, ShoppingCart, Clock } from "lucide-react";
@@ -24,6 +25,7 @@ const MUTED = "rgba(0,0,0,0.5)";
 
 export default function OrderPage() {
   const { itemCount } = useCart();
+  const { isItemUnavailable, unavailableUntil } = useMenuAvailability();
   const [, setLocation] = useLocation();
   const [selectedCategoryId, setSelectedCategoryId] = useState(
     menuCategories[0]?.id ?? ""
@@ -139,47 +141,74 @@ export default function OrderPage() {
           {/* Item grid */}
           <div className="p-4 flex-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {categoryItems.map((item) => (
-                <button
-                  key={item.name}
-                  type="button"
-                  onClick={() =>
-                    setCustomizeItem({
-                      categoryId: category!.id,
-                      categoryName: category!.name,
-                      item,
-                    })
-                  }
-                  className="text-left rounded-lg border p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.99]"
-                  style={{
-                    backgroundColor: CARD_BG,
-                    borderColor: "rgba(44,24,16,0.12)",
-                  }}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0">
-                      <p
-                        className="font-bold text-black"
-                        style={{ fontFamily: "'Oswald', sans-serif" }}
+              {categoryItems.map((item) => {
+                const unavailable = isItemUnavailable(category!.id, item.name);
+                const until = unavailableUntil(category!.id, item.name);
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    aria-disabled={unavailable}
+                    onClick={() => {
+                      if (unavailable) {
+                        const t =
+                          until != null
+                            ? new Date(until).toLocaleString([], {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })
+                            : "";
+                        toast.error(
+                          t
+                            ? `Temporarily unavailable until ${t}.`
+                            : "This item is temporarily unavailable."
+                        );
+                        return;
+                      }
+                      setCustomizeItem({
+                        categoryId: category!.id,
+                        categoryName: category!.name,
+                        item,
+                      });
+                    }}
+                    className="text-left rounded-lg border p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+                    style={{
+                      backgroundColor: unavailable ? "rgba(0,0,0,0.04)" : CARD_BG,
+                      borderColor: unavailable ? "rgba(220,38,38,0.25)" : "rgba(44,24,16,0.12)",
+                    }}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p
+                          className="font-bold text-black"
+                          style={{ fontFamily: "'Oswald', sans-serif" }}
+                        >
+                          {category?.name}
+                        </p>
+                        <p className="text-sm mt-0.5" style={{ color: MUTED }}>
+                          {item.name}
+                        </p>
+                        {unavailable && (
+                          <p className="text-xs mt-1 font-semibold text-red-700">
+                            Unavailable
+                            {until != null &&
+                              ` until ${new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className="font-semibold shrink-0"
+                        style={{ color: unavailable ? MUTED : GOLD }}
                       >
-                        {category?.name}
-                      </p>
-                      <p className="text-sm mt-0.5" style={{ color: MUTED }}>
-                        {item.name}
-                      </p>
+                        ${item.price.toFixed(2)}
+                      </span>
                     </div>
-                    <span
-                      className="font-semibold shrink-0"
-                      style={{ color: GOLD }}
-                    >
-                      ${item.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-xs mt-2" style={{ color: MUTED }}>
-                    Click to customize
-                  </p>
-                </button>
-              ))}
+                    <p className="text-xs mt-2" style={{ color: MUTED }}>
+                      {unavailable ? "Check back later" : "Click to customize"}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </main>

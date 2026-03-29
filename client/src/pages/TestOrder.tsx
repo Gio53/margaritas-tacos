@@ -6,6 +6,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useOrders } from "@/contexts/OrdersContext";
+import { useMenuAvailability } from "@/contexts/MenuAvailabilityContext";
 import { toast } from "sonner";
 import { menuCategories } from "@/data/menuData";
 import type { MenuItem } from "@/data/menuData";
@@ -44,6 +45,7 @@ export default function TestOrder() {
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const { addOrder, useApi } = useOrders();
+  const { isItemUnavailable, unavailableUntil } = useMenuAvailability();
 
   const [lines, setLines] = useState<TestOrderLine[]>([]);
   const [customerFirstName, setCustomerFirstName] = useState("Test");
@@ -93,6 +95,15 @@ export default function TestOrder() {
 
   const addLine = () => {
     if (!selectedCategory || !addItem) return;
+    if (isItemUnavailable(addCategoryId, addItem.name)) {
+      const u = unavailableUntil(addCategoryId, addItem.name);
+      toast.error(
+        u != null
+          ? `This item is unavailable until ${new Date(u).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}.`
+          : "This item is temporarily unavailable."
+      );
+      return;
+    }
     const missing = requiredForAdd.find((rc) => !addChoiceValues[rc.id]?.trim());
     if (missing) {
       toast.error(missing.prompt);
@@ -342,11 +353,15 @@ export default function TestOrder() {
                 className="rounded-lg border px-3 py-2 text-sm flex-1 min-w-[140px]"
               >
                 <option value="">Item</option>
-                {selectedCategory?.items.map((i) => (
-                  <option key={i.name} value={i.name}>
-                    {i.name} — ${i.price.toFixed(2)}
-                  </option>
-                ))}
+                {selectedCategory?.items.map((i) => {
+                  const off = isItemUnavailable(addCategoryId, i.name);
+                  return (
+                    <option key={i.name} value={i.name} disabled={off}>
+                      {i.name} — ${i.price.toFixed(2)}
+                      {off ? " (unavailable)" : ""}
+                    </option>
+                  );
+                })}
               </select>
               <div className="flex items-center gap-1">
                 <button

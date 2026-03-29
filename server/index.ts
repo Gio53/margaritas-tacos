@@ -15,10 +15,53 @@ const __dirname = path.dirname(__filename);
 // Load .env from project root so CLOVER_ACCESS_TOKEN, CLOVER_ECOM_API_KEY, PORT are set
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
-const ORDERS_FILE =
-  process.env.NODE_ENV === "production"
-    ? path.resolve(__dirname, "..", "data", "orders.json")
-    : path.resolve(__dirname, "..", "data", "orders.json");
+const DATA_DIR = path.resolve(__dirname, "..", "data");
+const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+const AVAILABILITY_FILE = path.join(DATA_DIR, "item-availability.json");
+
+interface AvailabilityEntry {
+  categoryId: string;
+  itemName: string;
+  unavailableUntil: number;
+}
+
+async function readAvailabilityRaw(): Promise<AvailabilityEntry[]> {
+  try {
+    const raw = await fs.readFile(AVAILABILITY_FILE, "utf-8");
+    const data = JSON.parse(raw) as { entries?: AvailabilityEntry[] };
+    return Array.isArray(data.entries) ? data.entries : [];
+  } catch {
+    return [];
+  }
+}
+
+function pruneAvailabilityEntries(entries: AvailabilityEntry[]): AvailabilityEntry[] {
+  const now = Date.now();
+  return entries.filter(
+    (e) =>
+      e &&
+      typeof e.categoryId === "string" &&
+      typeof e.itemName === "string" &&
+      typeof e.unavailableUntil === "number" &&
+      e.unavailableUntil > now
+  );
+}
+
+async function readAvailability(): Promise<AvailabilityEntry[]> {
+  const raw = await readAvailabilityRaw();
+  const pruned = pruneAvailabilityEntries(raw);
+  if (pruned.length !== raw.length) await writeAvailability(pruned);
+  return pruned;
+}
+
+async function writeAvailability(entries: AvailabilityEntry[]): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(
+    AVAILABILITY_FILE,
+    JSON.stringify({ entries }, null, 2),
+    "utf-8"
+  );
+}
 
 /** Order as stored in orders.json; includes optional Clover sync fields */
 interface StoredOrder {
@@ -573,6 +616,59 @@ async function startServer() {
     }
   });
 
+  app.get("/api/menu-availability", async (_req, res) => {
+    try {
+      const entries = await readAvailability();
+      res.json({ entries });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to read menu availability" });
+    }
+  });
+
+  app.post("/api/menu-availability", async (req, res) => {
+    try {
+      const body = req.body as {
+        action?: string;
+        categoryId?: string;
+        itemName?: string;
+        durationMinutes?: number;
+      };
+      const { action, categoryId, itemName } = body;
+      if (!action || !categoryId || !itemName || typeof categoryId !== "string" || typeof itemName !== "string") {
+        return res.status(400).json({ error: "action, categoryId, and itemName are required" });
+      }
+      const trimmedName = itemName.trim();
+      if (!trimmedName) return res.status(400).json({ error: "Invalid itemName" });
+
+      let merged = pruneAvailabilityEntries(await readAvailabilityRaw());
+
+      if (action === "clear") {
+        merged = merged.filter((e) => !(e.categoryId === categoryId && e.itemName === trimmedName));
+        await writeAvailability(merged);
+        return res.json({ entries: merged });
+      }
+
+      if (action !== "set") {
+        return res.status(400).json({ error: "action must be set or clear" });
+      }
+
+      const dm = body.durationMinutes;
+      const allowed = [240, 1440];
+      if (typeof dm !== "number" || !allowed.includes(dm)) {
+        return res.status(400).json({ error: "durationMinutes must be 240 (4h) or 1440 (1 day)" });
+      }
+      const unavailableUntil = Date.now() + dm * 60 * 1000;
+      merged = merged.filter((e) => !(e.categoryId === categoryId && e.itemName === trimmedName));
+      merged.push({ categoryId, itemName: trimmedName, unavailableUntil });
+      await writeAvailability(merged);
+      res.json({ entries: merged });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to update menu availability" });
+    }
+  });
+
   // Serve static files only in production when not API-only (e.g. Netlify hosts frontend, Render hosts API)
   if (process.env.NODE_ENV === "production" && !process.env.API_ONLY) {
     const staticPath = path.resolve(__dirname, "public");
@@ -588,7 +684,9 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
-    console.log(`Orders API: GET/POST /api/orders, PATCH /api/orders/:id/status`);
+    console.log(
+      `Orders API: GET/POST /api/orders, PATCH /api/orders/:id/status; GET/POST /api/menu-availability`
+    );
   });
 }
 
