@@ -260,7 +260,7 @@ export default function Checkout() {
                       {line.categoryName} {line.itemName}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
-                      Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
+                      {formatQuantityLabel(line.categoryId, line.quantity)}
                       {formatChoicesLine(line.categoryId, line.choices) &&
                         ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
                       {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
@@ -453,7 +453,7 @@ export default function Checkout() {
                   {line.categoryName} {line.itemName}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
-                  Qty: {formatQuantityLabel(line.categoryId, line.quantity)}
+                  {formatQuantityLabel(line.categoryId, line.quantity)}
                   {formatChoicesLine(line.categoryId, line.choices) &&
                     ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
                   {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}

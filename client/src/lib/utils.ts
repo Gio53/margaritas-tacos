@@ -1,19 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { usesOrderQuantityWording } from "@shared/cloverReceiptLayout";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Taco platters, Tostadas, Enchiladas, etc.: "1 order" / "2 orders". Otherwise plain quantity number. */
+/** Matches Clover / kitchen tickets: always "1 order" or "N orders" (category arg kept for call sites). */
 export function formatQuantityLabel(
-  categoryIdOrName: string | undefined,
+  _categoryIdOrName: string | undefined,
   quantity: number
 ): string {
-  if (!categoryIdOrName) return String(quantity);
-  if (usesOrderQuantityWording(categoryIdOrName, categoryIdOrName)) {
-    return quantity === 1 ? "1 order" : `${quantity} orders`;
-  }
-  return String(quantity);
+  const qty = Math.max(1, Math.floor(Number(quantity)) || 1);
+  return qty === 1 ? "1 order" : `${qty} orders`;
 }
