@@ -20,6 +20,20 @@ export function isOrderOfThreePlatter(categoryName: string | undefined): boolean
   );
 }
 
+/** Line items that print quantity as "1 order" / "N orders" (not "Qty: N") on Clover and kitchen tickets. */
+export function usesOrderQuantityWording(
+  categoryId: string | undefined,
+  categoryName: string | undefined
+): boolean {
+  const id = (categoryId ?? "").trim();
+  const name = (categoryName ?? "").trim();
+  if (isOrderOfThreePlatter(name)) return true;
+  if (id === "mexican-street-tacos" || id === "3-american-tacos") return true;
+  if (id === "tostadas" || name === "Tostadas") return true;
+  if (id === "enchiladas" || name === "Enchiladas") return true;
+  return false;
+}
+
 /** Choices/required options as printed under the item (before No / Add). */
 export function orderItemChoicesNote(
   categoryId: string | undefined,
@@ -76,8 +90,8 @@ export function buildCloverLineNameAndNote(line: CloverReceiptLineInput): {
     addStr = `Add: ${parts.join(", ")}`;
   }
 
-  const platter = isOrderOfThreePlatter(line.categoryName);
-  const qtyLine = platter
+  const orderWording = usesOrderQuantityWording(line.categoryId, line.categoryName);
+  const qtyLine = orderWording
     ? qty === 1
       ? "1 order"
       : `${qty} orders`
