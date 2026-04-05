@@ -13,7 +13,7 @@ import { CustomizeModal } from "@/components/CustomizeModal";
 import { CartPanel } from "@/components/CartPanel";
 import { ChevronLeft, ShoppingCart, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { isOpen, CLOSED_MESSAGE } from "@/utils/hours";
+import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
 
 const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
@@ -25,6 +25,7 @@ const MUTED = "rgba(0,0,0,0.5)";
 
 export default function OrderPage() {
   const { itemCount } = useCart();
+  const { isOpen, closedMessage } = useRestaurantHours();
   const { isItemUnavailable, unavailableUntil } = useMenuAvailability();
   const [, setLocation] = useLocation();
   const [selectedCategoryId, setSelectedCategoryId] = useState(
@@ -63,7 +64,7 @@ export default function OrderPage() {
           role="alert"
         >
           <Clock className="size-4 shrink-0" />
-          <span>{CLOSED_MESSAGE}</span>
+          <span>{closedMessage}</span>
         </div>
       )}
 
@@ -219,7 +220,7 @@ export default function OrderPage() {
             <CartPanel
               onProceedToCheckout={() => {
                 if (!isOpen()) {
-                  toast.error(CLOSED_MESSAGE);
+                  toast.error(closedMessage);
                   return;
                 }
                 setCartOpen(false);

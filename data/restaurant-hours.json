@@ -1,0 +1,13 @@
+{
+  "weekly": {
+    "0": { "open": 14, "close": 21 },
+    "1": null,
+    "2": { "open": 14, "close": 21 },
+    "3": { "open": 14, "close": 21 },
+    "4": { "open": 14, "close": 21 },
+    "5": { "open": 14, "close": 22 },
+    "6": { "open": 14, "close": 22 }
+  },
+  "closedDates": [],
+  "closedMessageCustom": null
+}

@@ -9,7 +9,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useOrders } from "@/contexts/OrdersContext";
 import { ChevronLeft, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { isOpen, CLOSED_MESSAGE } from "@/utils/hours";
+import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import {
@@ -33,6 +33,7 @@ const PICKUP_ADDRESS = "4549 Austin Blvd, Island Park, NY";
 export default function Checkout() {
   const { items, cartTotal, clearCart } = useCart();
   const { addOrder } = useOrders();
+  const { isOpen, closedMessage } = useRestaurantHours();
   const [, setLocation] = useLocation();
   const [placing, setPlacing] = useState(false);
   const [showPrepTimeDialog, setShowPrepTimeDialog] = useState(false);
@@ -54,7 +55,7 @@ export default function Checkout() {
   /** Step 1: validate, then show prep-time dialog (user taps Okay to actually submit). */
   const handlePlaceOrderClick = () => {
     if (!isOpen()) {
-      toast.error(CLOSED_MESSAGE);
+      toast.error(closedMessage);
       return;
     }
     if (items.length === 0) {
@@ -161,7 +162,7 @@ export default function Checkout() {
             We're closed
           </h1>
           <p className="text-base mb-6" style={{ color: ESPRESSO }}>
-            Open Tue–Thu & Sun 2pm–9pm, Fri–Sat 2pm–10pm EST. Closed Mondays.
+            {closedMessage}
           </p>
           <Link
             href="/order"

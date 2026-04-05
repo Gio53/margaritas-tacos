@@ -8,6 +8,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { menuCategories } from "@/data/menuData";
+import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
+import { dayName, formatHourForLabel, type DayNum } from "@/utils/hours";
 import { Phone, MapPin, Clock, ChevronDown, Menu, X, Leaf } from "lucide-react";
 
 const HERO_IMG = "https://private-us-east-1.manuscdn.com/sessionFile/hzTDuwj6alGRsnPs2KGFlf/sandbox/ASZe5vfvUKCslq96kKEdNS-img-1_1772065202000_na1fn_aGVyby1iYW5uZXI.jpg?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvaHpURHV3ajZhbEdSc25QczJLR0ZsZi9zYW5kYm94L0FTWmU1dmZ2VUtDc2xxOTZrS0VkTlMtaW1nLTFfMTc3MjA2NTIwMjAwMF9uYTFmbl9hR1Z5YnkxaVlXNXVaWEkuanBnP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=iFbrz6F570D8AURC2LEV-YxZHxoNgNrJGHm0HuTjmkzrSlyOnqpaJwZgJT5VOVz80A8HuwBo0D~TvnF8EzuYHLJr0beYl~eJ0OaQXVkv3XNLUumwSN2V3hPUXaR~2mTVBXQBQ5p5CFX5iwVkQWNFQss9bphxK104hG6HJztOF-z4uMeyh4o1fBGtNaIbTmZF87Z~OdNwfwXEakzG~IoJhO66lm0z6T8CeMzcvJk84zF1NrDe9JYExl7KrzBn0-mO83NDp1OdVptP-v6lYf8tjT9Bb5ugZwdtMqvc-mZ~tYIRhwG572d6UQh4S1XHHZk3dQVsM0iDI0cWMEYkx5ADpw__";
@@ -50,6 +52,56 @@ function useScrollSpy(ids: string[]) {
     return () => observers.forEach((o) => o.disconnect());
   }, [ids]);
   return activeId;
+}
+
+const WEEK_DISPLAY_ORDER: DayNum[] = [1, 2, 3, 4, 5, 6, 0];
+
+function HomeOpeningHours() {
+  const { config } = useRestaurantHours();
+  return (
+    <div className="space-y-3">
+      {WEEK_DISPLAY_ORDER.map((d) => {
+        const h = config.weekly[String(d)];
+        return (
+          <div
+            key={d}
+            className="flex justify-between items-center py-2"
+            style={{ borderBottom: "1px solid rgba(255,248,240,0.1)" }}
+          >
+            <span
+              style={{
+                fontFamily: "'Lato', sans-serif",
+                color: "rgba(255,248,240,0.8)",
+                fontSize: "0.95rem",
+              }}
+            >
+              {dayName(d)}
+            </span>
+            <span
+              style={{
+                fontFamily: "'Oswald', sans-serif",
+                color: !h ? "#ef4444" : "#E8A838",
+                fontWeight: 600,
+                fontSize: "0.95rem",
+              }}
+            >
+              {h ? `${formatHourForLabel(h.open)} – ${formatHourForLabel(h.close)}` : "Closed"}
+            </span>
+          </div>
+        );
+      })}
+      <p
+        style={{
+          fontFamily: "'Lato', sans-serif",
+          color: "rgba(255,248,240,0.5)",
+          fontSize: "0.75rem",
+          marginTop: "0.5rem",
+        }}
+      >
+        Times are Eastern (America/New_York). Holiday closures may also apply.
+      </p>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -353,21 +405,7 @@ export default function Home() {
                   Opening Hours
                 </h3>
               </div>
-              <div className="space-y-3">
-                {[
-                  { day: "Monday", hours: "Closed", closed: true },
-                  { day: "Tuesday – Thursday", hours: "2:00 PM – 9:00 PM" },
-                  { day: "Sunday", hours: "2:00 PM – 9:00 PM" },
-                  { day: "Friday – Saturday", hours: "2:00 PM – 10:00 PM" },
-                ].map((row) => (
-                  <div key={row.day} className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid rgba(255,248,240,0.1)" }}>
-                    <span style={{ fontFamily: "'Lato', sans-serif", color: "rgba(255,248,240,0.8)", fontSize: "0.95rem" }}>{row.day}</span>
-                    <span style={{ fontFamily: "'Oswald', sans-serif", color: row.closed ? "#ef4444" : "#E8A838", fontWeight: 600, fontSize: "0.95rem" }}>
-                      {row.hours}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <HomeOpeningHours />
             </div>
 
             {/* Location card */}

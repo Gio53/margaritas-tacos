@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
 import { OrdersProvider } from "./contexts/OrdersContext";
 import { MenuAvailabilityProvider } from "./contexts/MenuAvailabilityContext";
+import { RestaurantHoursProvider } from "./contexts/RestaurantHoursContext";
 import Home from "./pages/Home";
 import Order from "./pages/Order";
 import Checkout from "./pages/Checkout";
@@ -20,6 +21,8 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/order"} component={Order} />
       <Route path={"/checkout"} component={Checkout} />
+      <Route path={"/admin/availability"} component={Admin} />
+      <Route path={"/admin/hours"} component={Admin} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/test-order"} component={TestOrder} />
       <Route path={"/receipt-preview"} component={ReceiptLayoutPreview} />
@@ -36,10 +39,12 @@ function App() {
         <CartProvider>
           <OrdersProvider>
             <MenuAvailabilityProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Router />
-              </TooltipProvider>
+              <RestaurantHoursProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Router />
+                </TooltipProvider>
+              </RestaurantHoursProvider>
             </MenuAvailabilityProvider>
           </OrdersProvider>
         </CartProvider>

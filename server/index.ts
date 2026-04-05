@@ -8,6 +8,12 @@ import {
   buildCloverLineNameAndNote,
   type CloverReceiptLineInput,
 } from "../shared/cloverReceiptLayout";
+import {
+  defaultRestaurantHoursConfig,
+  parseRestaurantHoursBody,
+  type DayHours,
+  type RestaurantHoursConfig,
+} from "../shared/restaurantHours";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +24,42 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 const DATA_DIR = path.resolve(__dirname, "..", "data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const AVAILABILITY_FILE = path.join(DATA_DIR, "item-availability.json");
+const RESTAURANT_HOURS_FILE = path.join(DATA_DIR, "restaurant-hours.json");
+
+function mergeHoursWithDefaults(partial: RestaurantHoursConfig): RestaurantHoursConfig {
+  const base = defaultRestaurantHoursConfig();
+  const weekly: Record<string, DayHours | null> = { ...base.weekly };
+  for (let d = 0; d <= 6; d++) {
+    const k = String(d);
+    if (Object.prototype.hasOwnProperty.call(partial.weekly, k)) weekly[k] = partial.weekly[k];
+  }
+  return {
+    weekly,
+    closedDates: partial.closedDates ?? [],
+    closedMessageCustom: partial.closedMessageCustom ?? null,
+  };
+}
+
+async function readRestaurantHours(): Promise<RestaurantHoursConfig> {
+  try {
+    const raw = await fs.readFile(RESTAURANT_HOURS_FILE, "utf-8");
+    const data = JSON.parse(raw) as unknown;
+    const parsed = parseRestaurantHoursBody(data);
+    if (parsed) return mergeHoursWithDefaults(parsed);
+  } catch {
+    // fall through
+  }
+  return defaultRestaurantHoursConfig();
+}
+
+async function writeRestaurantHours(config: RestaurantHoursConfig): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(
+    RESTAURANT_HOURS_FILE,
+    JSON.stringify(config, null, 2),
+    "utf-8"
+  );
+}
 
 interface AvailabilityEntry {
   categoryId: string;
@@ -669,6 +711,30 @@ async function startServer() {
     }
   });
 
+  app.get("/api/restaurant-hours", async (_req, res) => {
+    try {
+      const config = await readRestaurantHours();
+      res.json(config);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to read restaurant hours" });
+    }
+  });
+
+  app.post("/api/restaurant-hours", async (req, res) => {
+    try {
+      const parsed = parseRestaurantHoursBody(req.body);
+      if (!parsed) {
+        return res.status(400).json({ error: "Invalid hours payload" });
+      }
+      await writeRestaurantHours(parsed);
+      res.json(parsed);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to save restaurant hours" });
+    }
+  });
+
   // Serve static files only in production when not API-only (e.g. Netlify hosts frontend, Render hosts API)
   if (process.env.NODE_ENV === "production" && !process.env.API_ONLY) {
     const staticPath = path.resolve(__dirname, "public");
@@ -685,7 +751,7 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     console.log(
-      `Orders API: GET/POST /api/orders, PATCH /api/orders/:id/status; GET/POST /api/menu-availability`
+      `GET/POST /api/orders, PATCH /api/orders/:id/status, GET/POST /api/menu-availability, GET/POST /api/restaurant-hours`
     );
   });
 }
