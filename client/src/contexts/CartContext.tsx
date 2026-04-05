@@ -3,7 +3,9 @@
 // ============================================================
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { OrderExtra } from "@/data/orderOptions";
+import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
 
 export interface CartLineItem {
   id: string;
@@ -51,10 +53,15 @@ export function computeLineTotal(
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { isOpen, closedMessage } = useRestaurantHours();
   const [items, setItems] = useState<CartLineItem[]>([]);
 
   const addItem = useCallback(
     (item: Omit<CartLineItem, "id" | "lineTotal">) => {
+      if (!isOpen()) {
+        toast.error(closedMessage);
+        return;
+      }
       const lineTotal = computeLineTotal(
         item.basePrice,
         item.quantity,
@@ -66,35 +73,43 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         { ...item, id: generateId(), lineTotal },
       ]);
     },
-    []
+    [isOpen, closedMessage]
   );
 
   const removeItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  const updateQuantity = useCallback((id: string, quantity: number) => {
-    if (quantity < 1) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
-      return;
-    }
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              quantity,
-              lineTotal: computeLineTotal(
-                i.basePrice,
+  const updateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      setItems((prev) => {
+        if (quantity < 1) {
+          return prev.filter((i) => i.id !== id);
+        }
+        const line = prev.find((i) => i.id === id);
+        if (!line) return prev;
+        if (!isOpen() && quantity > line.quantity) {
+          toast.error(closedMessage);
+          return prev;
+        }
+        return prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
                 quantity,
-                i.addExtras,
-                i.categoryId
-              ),
-            }
-          : i
-      )
-    );
-  }, []);
+                lineTotal: computeLineTotal(
+                  i.basePrice,
+                  quantity,
+                  i.addExtras,
+                  i.categoryId
+                ),
+              }
+            : i
+        );
+      });
+    },
+    [isOpen, closedMessage]
+  );
 
   const clearCart = useCallback(() => setItems([]), []);
 

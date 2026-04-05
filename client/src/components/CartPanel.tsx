@@ -1,6 +1,5 @@
 // ============================================================
 // Your Cart side panel — sits next to menu, not a modal
-// Dark brown panel, item cards, subtotal, tax, total, Proceed to Checkout
 // ============================================================
 
 import { useCart } from "@/contexts/CartContext";
@@ -8,7 +7,6 @@ import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { X } from "lucide-react";
 
-const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
 const CREAM = "#FFF8F0";
 const CARD_BG = "rgba(139, 90, 43, 0.35)";
@@ -16,9 +14,15 @@ const TAX_RATE = 0.08875;
 
 interface CartPanelProps {
   onProceedToCheckout?: () => void;
+  orderingClosed?: boolean;
+  closedMessage?: string;
 }
 
-export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
+export function CartPanel({
+  onProceedToCheckout,
+  orderingClosed = false,
+  closedMessage = "",
+}: CartPanelProps) {
   const { items, removeItem, updateQuantity, cartTotal } = useCart();
   const subtotal = cartTotal;
   const tax = subtotal * TAX_RATE;
@@ -28,7 +32,7 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
     <aside
       className="h-full flex flex-col w-full min-w-0 rounded-l-2xl border-l border-t border-b overflow-hidden"
       style={{
-        backgroundColor: ESPRESSO,
+        backgroundColor: "#2C1810",
         borderColor: "rgba(232,168,56,0.25)",
       }}
     >
@@ -39,6 +43,11 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
         >
           Your Cart
         </h2>
+        {orderingClosed && (
+          <p className="text-xs mt-2 rounded-lg px-2 py-1.5 bg-amber-500/20 text-amber-100 border border-amber-400/30">
+            Ordering is closed. You can remove items or lower quantities; checkout opens during business hours.
+          </p>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
@@ -113,15 +122,17 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
                     </span>
                     <button
                       type="button"
+                      disabled={orderingClosed}
                       onClick={() =>
                         updateQuantity(line.id, line.quantity + 1)
                       }
-                      className="size-8 rounded-lg flex items-center justify-center border transition-transform active:scale-95"
+                      className="size-8 rounded-lg flex items-center justify-center border transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{
                         borderColor: "rgba(255,248,240,0.3)",
                         backgroundColor: "rgba(255,255,255,0.1)",
                         color: CREAM,
                       }}
+                      aria-label="Increase quantity"
                     >
                       +
                     </button>
@@ -133,7 +144,6 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
               </div>
             ))}
 
-            {/* Order summary — white text on dark brown */}
             <div className="rounded-xl p-4" style={{
               backgroundColor: "rgba(0,0,0,0.2)",
               border: "1px solid rgba(255,248,240,0.1)",
@@ -163,11 +173,12 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
       </div>
 
       {items.length > 0 && (
-        <div className="p-4 shrink-0 border-t" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
+        <div className="p-4 shrink-0 border-t space-y-2" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
           <button
             type="button"
+            disabled={orderingClosed}
             onClick={onProceedToCheckout}
-            className="w-full py-3 rounded-xl font-bold uppercase tracking-wider transition-transform active:scale-[0.98] text-white"
+            className="w-full py-3 rounded-xl font-bold uppercase tracking-wider transition-transform active:scale-[0.98] text-white disabled:opacity-45 disabled:cursor-not-allowed"
             style={{
               backgroundColor: "#C4622D",
               fontFamily: "'Oswald', sans-serif",
@@ -176,6 +187,11 @@ export function CartPanel({ onProceedToCheckout }: CartPanelProps) {
           >
             Proceed to checkout
           </button>
+          {orderingClosed && closedMessage && (
+            <p className="text-center text-xs px-1" style={{ color: "rgba(255,248,240,0.65)" }}>
+              {closedMessage}
+            </p>
+          )}
         </div>
       )}
     </aside>

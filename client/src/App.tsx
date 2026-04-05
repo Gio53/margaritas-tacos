@@ -36,18 +36,18 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <CartProvider>
-          <OrdersProvider>
-            <MenuAvailabilityProvider>
-              <RestaurantHoursProvider>
+        <RestaurantHoursProvider>
+          <CartProvider>
+            <OrdersProvider>
+              <MenuAvailabilityProvider>
                 <TooltipProvider>
                   <Toaster />
                   <Router />
                 </TooltipProvider>
-              </RestaurantHoursProvider>
-            </MenuAvailabilityProvider>
-          </OrdersProvider>
-        </CartProvider>
+              </MenuAvailabilityProvider>
+            </OrdersProvider>
+          </CartProvider>
+        </RestaurantHoursProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

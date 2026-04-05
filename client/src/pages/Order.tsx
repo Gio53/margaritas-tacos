@@ -11,6 +11,14 @@ import { useCart } from "@/contexts/CartContext";
 import { useMenuAvailability } from "@/contexts/MenuAvailabilityContext";
 import { CustomizeModal } from "@/components/CustomizeModal";
 import { CartPanel } from "@/components/CartPanel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ChevronLeft, ShoppingCart, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
@@ -28,6 +36,8 @@ export default function OrderPage() {
   const { isOpen, closedMessage } = useRestaurantHours();
   const { isItemUnavailable, unavailableUntil } = useMenuAvailability();
   const [, setLocation] = useLocation();
+  const restaurantOpen = isOpen();
+  const [closedNoticeDismissed, setClosedNoticeDismissed] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState(
     menuCategories[0]?.id ?? ""
   );
@@ -37,6 +47,19 @@ export default function OrderPage() {
     item: MenuItem;
   } | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+
+  useEffect(() => {
+    if (restaurantOpen) setClosedNoticeDismissed(false);
+  }, [restaurantOpen]);
+
+  useEffect(() => {
+    if (!restaurantOpen) {
+      setCustomizeItem(null);
+    }
+  }, [restaurantOpen]);
+
+  const showClosedDialog = !restaurantOpen && !closedNoticeDismissed;
+  const orderingClosed = !restaurantOpen;
 
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const category = menuCategories.find((c) => c.id === selectedCategoryId);
@@ -57,16 +80,42 @@ export default function OrderPage() {
       className="min-h-screen flex flex-col"
       style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
     >
-      {/* Closed hours banner */}
-      {!isOpen() && (
-        <div
-          className="flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium text-amber-900 bg-amber-100 border-b border-amber-200"
-          role="alert"
+      <Dialog
+        open={showClosedDialog}
+        onOpenChange={(open) => {
+          if (!open) setClosedNoticeDismissed(true);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md border-2"
+          style={{ borderColor: "rgba(44,24,16,0.2)" }}
         >
-          <Clock className="size-4 shrink-0" />
-          <span>{closedMessage}</span>
-        </div>
-      )}
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-amber-100 text-amber-900">
+              <Clock className="size-6" aria-hidden />
+            </div>
+            <DialogTitle className="text-center text-xl" style={{ color: ESPRESSO }}>
+              We&apos;re closed
+            </DialogTitle>
+            <DialogDescription className="text-center text-base pt-2 text-gray-700">
+              {closedMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center pt-2">
+            <Button asChild className="w-full sm:w-auto" style={{ backgroundColor: ESPRESSO }}>
+              <Link href="/">Back to home</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto border-amber-800/30"
+              onClick={() => setClosedNoticeDismissed(true)}
+            >
+              View menu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Header: Back | PLACE YOUR ORDER | Cart icon ── */}
       <header
@@ -145,12 +194,17 @@ export default function OrderPage() {
               {categoryItems.map((item) => {
                 const unavailable = isItemUnavailable(category!.id, item.name);
                 const until = unavailableUntil(category!.id, item.name);
+                const blocked = orderingClosed || unavailable;
                 return (
                   <button
                     key={item.name}
                     type="button"
-                    aria-disabled={unavailable}
+                    aria-disabled={blocked}
                     onClick={() => {
+                      if (orderingClosed) {
+                        toast.error(closedMessage);
+                        return;
+                      }
                       if (unavailable) {
                         const t =
                           until != null
@@ -174,8 +228,8 @@ export default function OrderPage() {
                     }}
                     className="text-left rounded-lg border p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
                     style={{
-                      backgroundColor: unavailable ? "rgba(0,0,0,0.04)" : CARD_BG,
-                      borderColor: unavailable ? "rgba(220,38,38,0.25)" : "rgba(44,24,16,0.12)",
+                      backgroundColor: blocked ? "rgba(0,0,0,0.04)" : CARD_BG,
+                      borderColor: blocked ? "rgba(220,38,38,0.25)" : "rgba(44,24,16,0.12)",
                     }}
                   >
                     <div className="flex justify-between items-start gap-2">
@@ -189,7 +243,12 @@ export default function OrderPage() {
                         <p className="text-sm mt-0.5" style={{ color: MUTED }}>
                           {item.name}
                         </p>
-                        {unavailable && (
+                        {orderingClosed && (
+                          <p className="text-xs mt-1 font-semibold text-amber-900">
+                            Ordering closed — open hours only
+                          </p>
+                        )}
+                        {!orderingClosed && unavailable && (
                           <p className="text-xs mt-1 font-semibold text-red-700">
                             Unavailable
                             {until != null &&
@@ -199,13 +258,17 @@ export default function OrderPage() {
                       </div>
                       <span
                         className="font-semibold shrink-0"
-                        style={{ color: unavailable ? MUTED : GOLD }}
+                        style={{ color: blocked ? MUTED : GOLD }}
                       >
                         ${item.price.toFixed(2)}
                       </span>
                     </div>
                     <p className="text-xs mt-2" style={{ color: MUTED }}>
-                      {unavailable ? "Check back later" : "Click to customize"}
+                      {orderingClosed
+                        ? "Not available while closed"
+                        : unavailable
+                          ? "Check back later"
+                          : "Click to customize"}
                     </p>
                   </button>
                 );
@@ -218,6 +281,8 @@ export default function OrderPage() {
         {cartOpen && (
           <div className="w-full sm:w-[380px] md:w-[400px] shrink-0 h-full overflow-hidden">
             <CartPanel
+              orderingClosed={orderingClosed}
+              closedMessage={closedMessage}
               onProceedToCheckout={() => {
                 if (!isOpen()) {
                   toast.error(closedMessage);
@@ -232,7 +297,7 @@ export default function OrderPage() {
       </div>
 
       {/* Customize modal */}
-      {customizeItem && (
+      {customizeItem && restaurantOpen && (
         <CustomizeModal
           open={!!customizeItem}
           onOpenChange={(open) => !open && setCustomizeItem(null)}
