@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCart } from "@/contexts/CartContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
+import { computeOrderTotals } from "@/lib/orderPricing";
 import { formatQuantityLabel } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -18,7 +19,6 @@ const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
 const CREAM = "#FFF8F0";
 const CARD_BG = "rgba(139, 90, 43, 0.35)"; // lighter brown rounded card
-const TAX_RATE = 0.08875;
 
 interface CartModalProps {
   open: boolean;
@@ -32,9 +32,14 @@ export function CartModal({
   onProceedToCheckout,
 }: CartModalProps) {
   const { items, removeItem, updateQuantity, cartTotal } = useCart();
-  const subtotal = cartTotal;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  const {
+    subtotalBeforeDiscount,
+    bulkDealEligible,
+    discountAmount,
+    subtotal,
+    tax,
+    total,
+  } = computeOrderTotals(cartTotal);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,9 +167,19 @@ export function CartModal({
                 <div className="flex justify-between text-sm mb-1">
                   <span style={{ color: ESPRESSO }}>Subtotal</span>
                   <span className="font-bold" style={{ color: GOLD }}>
-                    ${subtotal.toFixed(2)}
+                    ${subtotalBeforeDiscount.toFixed(2)}
                   </span>
                 </div>
+                {bulkDealEligible && (
+                  <div className="flex justify-between text-sm mb-1">
+                    <span style={{ color: ESPRESSO }}>
+                      25% off (orders over $20)
+                    </span>
+                    <span className="font-bold" style={{ color: "#22C55E" }}>
+                      −${discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm mb-2">
                   <span style={{ color: ESPRESSO }}>Tax (8.875%)</span>
                   <span className="font-bold" style={{ color: GOLD }}>

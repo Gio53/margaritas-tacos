@@ -11,6 +11,7 @@ import { ChevronLeft, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
+import { computeOrderTotals } from "@/lib/orderPricing";
 import { formatQuantityLabel } from "@/lib/utils";
 import {
   AlertDialog,
@@ -27,7 +28,6 @@ const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
 const CREAM = "#FFF8F0";
 const BEIGE_BG = "#FFF8F0";
-const TAX_RATE = 0.08875;
 const PICKUP_ADDRESS = "4549 Austin Blvd, Island Park, NY";
 
 export default function Checkout() {
@@ -48,9 +48,14 @@ export default function Checkout() {
   /** On mobile: when false, order summary is collapsed so user can type in form */
   const [summaryExpanded, setSummaryExpanded] = useState(true);
 
-  const subtotal = cartTotal;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  const {
+    subtotalBeforeDiscount,
+    bulkDealEligible,
+    discountAmount,
+    subtotal,
+    tax,
+    total,
+  } = computeOrderTotals(cartTotal);
 
   /** Step 1: validate, then show prep-time dialog (user taps Okay to actually submit). */
   const handlePlaceOrderClick = () => {
@@ -274,10 +279,16 @@ export default function Checkout() {
               <div className="p-4 border-t space-y-1 shrink-0" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
                 <div className="flex justify-between text-white text-sm">
                   <span>Subtotal</span>
-                  <span style={{ color: GOLD }}>${subtotal.toFixed(2)}</span>
+                  <span style={{ color: GOLD }}>${subtotalBeforeDiscount.toFixed(2)}</span>
                 </div>
+                {bulkDealEligible && (
+                  <div className="flex justify-between text-white text-sm">
+                    <span>25% off (orders over $20)</span>
+                    <span style={{ color: "#86EFAC" }}>−${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-white text-sm">
-                  <span>Tax</span>
+                  <span>Tax (8.875%)</span>
                   <span style={{ color: GOLD }}>${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-white pt-2 mt-2 border-t" style={{ borderColor: "rgba(255,248,240,0.15)" }}>
@@ -467,10 +478,16 @@ export default function Checkout() {
           <div className="p-4 border-t space-y-1" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
             <div className="flex justify-between text-white text-sm">
               <span>Subtotal</span>
-              <span style={{ color: GOLD }}>${subtotal.toFixed(2)}</span>
+              <span style={{ color: GOLD }}>${subtotalBeforeDiscount.toFixed(2)}</span>
             </div>
+            {bulkDealEligible && (
+              <div className="flex justify-between text-white text-sm">
+                <span>25% off (orders over $20)</span>
+                <span style={{ color: "#86EFAC" }}>−${discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-white text-sm">
-              <span>Tax</span>
+              <span>Tax (8.875%)</span>
               <span style={{ color: GOLD }}>${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-white pt-2 mt-2 border-t" style={{ borderColor: "rgba(255,248,240,0.15)" }}>
