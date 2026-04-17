@@ -33,7 +33,6 @@ export const menuCategories: MenuCategory[] = [
       { name: "Carnitas", price: 12 },
       { name: "Shrimp", price: 12 },
       { name: "Chorizo", price: 12 },
-      { name: "Lengua", price: 12 },
       { name: "Tinga (Spicy Chicken)", price: 12 },
     ],
   },
@@ -164,7 +163,6 @@ export const menuCategories: MenuCategory[] = [
       { name: "Chorizo", price: 15.00 },
       { name: "Carnitas", price: 14.00 },
       { name: "Tinga (Spicy Chicken)", price: 14.00 },
-      { name: "El Chavo (Ham/Jamon)", price: 14.00 },
     ],
   },
   {
