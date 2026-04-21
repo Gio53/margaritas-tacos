@@ -1,5 +1,5 @@
 // ============================================================
-// Admin — Orders (today / completed, Clover, kitchen ticket)
+// Admin — Orders (today, Clover, kitchen ticket)
 // ============================================================
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -309,10 +309,6 @@ export default function AdminOrdersPage() {
   const {
     orders,
     setOrderStatus,
-    pendingCount,
-    readyCount,
-    completedCount,
-    totalCount,
     isLoading,
     useApi,
     refreshOrders,
@@ -467,40 +463,22 @@ export default function AdminOrdersPage() {
     return d.getTime();
   }, [dateTick]);
 
-  /** Today's orders still in the kitchen queue (pending / ready). Completed ones move to the Completed tab. */
-  const todayActiveOrders = useMemo(
-    () => orders.filter((o) => o.createdAt >= startOfToday && o.status !== "completed"),
+  const todayOrders = useMemo(
+    () => orders.filter((o) => o.createdAt >= startOfToday),
     [orders, startOfToday]
   );
 
-  /** Placed today and already marked completed (for stats only). */
-  const todayCompletedOrders = useMemo(
-    () => orders.filter((o) => o.createdAt >= startOfToday && o.status === "completed"),
-    [orders, startOfToday]
-  );
-
-  /** All completed orders (any day), newest first — past + today's completed. */
-  const allCompletedOrders = useMemo(
-    () => [...orders].filter((o) => o.status === "completed").sort((a, b) => b.createdAt - a.createdAt),
-    [orders]
-  );
-
-  const [viewMode, setViewMode] = useState<"today" | "all-completed">("today");
   const [cloverFilter, setCloverFilter] = useState<"all" | "synced" | "failed">("all");
-  const ordersToShow = viewMode === "today" ? todayActiveOrders : allCompletedOrders;
   const ordersToShowFiltered = useMemo(() => {
-    /* Clover filter only applies to Today's queue — otherwise "Completed" hid real past orders without Clover sync. */
-    if (viewMode === "all-completed") return ordersToShow;
-    if (cloverFilter === "all") return ordersToShow;
-    if (cloverFilter === "synced") return ordersToShow.filter((o) => o.cloverSyncStatus === "synced");
-    return ordersToShow.filter((o) => o.cloverSyncStatus === "failed");
-  }, [viewMode, ordersToShow, cloverFilter]);
+    if (cloverFilter === "all") return todayOrders;
+    if (cloverFilter === "synced") return todayOrders.filter((o) => o.cloverSyncStatus === "synced");
+    return todayOrders.filter((o) => o.cloverSyncStatus === "failed");
+  }, [todayOrders, cloverFilter]);
 
-  const todayPendingCount = todayActiveOrders.filter((o) => o.status === "pending").length;
-  const todayReadyCount = todayActiveOrders.filter((o) => o.status === "ready").length;
-  const todayCompletedCount = todayCompletedOrders.length;
-  const todayTotalCount = todayActiveOrders.length + todayCompletedOrders.length;
-  const allCompletedCount = allCompletedOrders.length;
+  const todayPendingCount = todayOrders.filter((o) => o.status === "pending").length;
+  const todayReadyCount = todayOrders.filter((o) => o.status === "ready").length;
+  const todayCompletedCount = todayOrders.filter((o) => o.status === "completed").length;
+  const todayTotalCount = todayOrders.length;
 
   return (
     <>
@@ -557,38 +535,12 @@ export default function AdminOrdersPage() {
           />
         </div>
 
-        {/* Order list — Today or All completed */}
+        {/* Order list — Today */}
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <h2 className="text-lg font-bold" style={{ color: ESPRESSO }}>
-            {viewMode === "today" ? "Orders — Today (active)" : "Completed orders"}
+            Orders — Today
           </h2>
-          <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "rgba(44,24,16,0.2)" }}>
-            <button
-              type="button"
-              onClick={() => setViewMode("today")}
-              className="px-3 py-1.5 text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: viewMode === "today" ? ESPRESSO : "transparent",
-                color: viewMode === "today" ? "white" : ESPRESSO,
-              }}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("all-completed")}
-              className="px-3 py-1.5 text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: viewMode === "all-completed" ? ESPRESSO : "transparent",
-                color: viewMode === "all-completed" ? "white" : ESPRESSO,
-              }}
-            >
-              Completed ({allCompletedCount})
-            </button>
-          </div>
         </div>
-        {/* Clover filter — Today's active queue only (hidden on Completed tab). */}
-        {viewMode === "today" && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="text-sm font-medium" style={{ color: "#6B7280" }}>Clover:</span>
           <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "rgba(44,24,16,0.2)" }}>
@@ -627,7 +579,6 @@ export default function AdminOrdersPage() {
             </button>
           </div>
         </div>
-        )}
         {testCloverResult != null && (
           <div
             className="mb-4 p-3 rounded-lg border text-sm"
@@ -656,12 +607,8 @@ export default function AdminOrdersPage() {
           </p>
         ) : ordersToShowFiltered.length === 0 ? (
           <p className="text-center py-8" style={{ color: "#6B7280" }}>
-            {viewMode === "today"
-              ? todayCompletedOrders.length > 0 && todayActiveOrders.length === 0
-                ? "No active orders left today — switch to Completed to see finished orders from today."
-                : "No active orders today yet. New checkouts appear here until you mark them completed."
-              : "No completed orders yet. Mark an order completed from Today to build this list."}
-            {viewMode === "today" && cloverFilter !== "all" && " No orders match the current Clover filter."}
+            No orders today yet. Orders from checkout will appear here.
+            {cloverFilter !== "all" && " No orders match the current Clover filter."}
           </p>
         ) : (
           <div className="space-y-4">

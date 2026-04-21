@@ -21,7 +21,10 @@ const __dirname = path.dirname(__filename);
 // Load .env from project root so CLOVER_ACCESS_TOKEN, CLOVER_ECOM_API_KEY, PORT are set
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
-const DATA_DIR = path.resolve(__dirname, "..", "data");
+/** Persist orders across deploys on Render etc.: set MARGARITAS_DATA_DIR to a mounted disk path (see render.yaml). */
+const DATA_DIR = process.env.MARGARITAS_DATA_DIR?.trim()
+  ? path.resolve(process.env.MARGARITAS_DATA_DIR.trim())
+  : path.resolve(__dirname, "..", "data");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const AVAILABILITY_FILE = path.join(DATA_DIR, "item-availability.json");
 const RESTAURANT_HOURS_FILE = path.join(DATA_DIR, "restaurant-hours.json");

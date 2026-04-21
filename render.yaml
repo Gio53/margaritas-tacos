@@ -10,6 +10,12 @@ services:
     runtime: node
     buildCommand: npm install --omit=dev --legacy-peer-deps && npm run build:server
     startCommand: node dist/index.js
+    # Paid web services: uncomment a persistent disk so orders survive deploys, then set the same path in env:
+    # disk:
+    #   name: margaritas-data
+    #   mountPath: /var/margaritas-data
+    #   sizeGB: 1
+    #   (add env var MARGARITAS_DATA_DIR=/var/margaritas-data in the Render dashboard)
     envVars:
       - key: NODE_ENV
         value: production
