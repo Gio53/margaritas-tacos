@@ -32,14 +32,7 @@ export function CartModal({
   onProceedToCheckout,
 }: CartModalProps) {
   const { items, removeItem, updateQuantity, cartTotal } = useCart();
-  const {
-    subtotalBeforeDiscount,
-    bulkDealEligible,
-    discountAmount,
-    subtotal,
-    tax,
-    total,
-  } = computeOrderTotals(cartTotal);
+  const { subtotal, tax, total } = computeOrderTotals(cartTotal);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,19 +160,9 @@ export function CartModal({
                 <div className="flex justify-between text-sm mb-1">
                   <span style={{ color: ESPRESSO }}>Subtotal</span>
                   <span className="font-bold" style={{ color: GOLD }}>
-                    ${subtotalBeforeDiscount.toFixed(2)}
+                    ${subtotal.toFixed(2)}
                   </span>
                 </div>
-                {bulkDealEligible && (
-                  <div className="flex justify-between text-sm mb-1">
-                    <span style={{ color: ESPRESSO }}>
-                      25% off (orders over $20)
-                    </span>
-                    <span className="font-bold" style={{ color: "#22C55E" }}>
-                      −${discountAmount.toFixed(2)}
-                    </span>
-                  </div>
-                )}
                 <div className="flex justify-between text-sm mb-2">
                   <span style={{ color: ESPRESSO }}>Tax (8.875%)</span>
                   <span className="font-bold" style={{ color: GOLD }}>

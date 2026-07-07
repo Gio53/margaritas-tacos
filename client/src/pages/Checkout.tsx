@@ -48,14 +48,7 @@ export default function Checkout() {
   /** On mobile: when false, order summary is collapsed so user can type in form */
   const [summaryExpanded, setSummaryExpanded] = useState(true);
 
-  const {
-    subtotalBeforeDiscount,
-    bulkDealEligible,
-    discountAmount,
-    subtotal,
-    tax,
-    total,
-  } = computeOrderTotals(cartTotal);
+  const { subtotal, tax, total } = computeOrderTotals(cartTotal);
 
   /** Step 1: validate, then show prep-time dialog (user taps Okay to actually submit). */
   const handlePlaceOrderClick = () => {
@@ -279,14 +272,8 @@ export default function Checkout() {
               <div className="p-4 border-t space-y-1 shrink-0" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
                 <div className="flex justify-between text-white text-sm">
                   <span>Subtotal</span>
-                  <span style={{ color: GOLD }}>${subtotalBeforeDiscount.toFixed(2)}</span>
+                  <span style={{ color: GOLD }}>${subtotal.toFixed(2)}</span>
                 </div>
-                {bulkDealEligible && (
-                  <div className="flex justify-between text-white text-sm">
-                    <span>25% off (orders over $20)</span>
-                    <span style={{ color: "#86EFAC" }}>−${discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-white text-sm">
                   <span>Tax (8.875%)</span>
                   <span style={{ color: GOLD }}>${tax.toFixed(2)}</span>
@@ -478,14 +465,8 @@ export default function Checkout() {
           <div className="p-4 border-t space-y-1" style={{ borderColor: "rgba(255,248,240,0.1)" }}>
             <div className="flex justify-between text-white text-sm">
               <span>Subtotal</span>
-              <span style={{ color: GOLD }}>${subtotalBeforeDiscount.toFixed(2)}</span>
+              <span style={{ color: GOLD }}>${subtotal.toFixed(2)}</span>
             </div>
-            {bulkDealEligible && (
-              <div className="flex justify-between text-white text-sm">
-                <span>25% off (orders over $20)</span>
-                <span style={{ color: "#86EFAC" }}>−${discountAmount.toFixed(2)}</span>
-              </div>
-            )}
             <div className="flex justify-between text-white text-sm">
               <span>Tax (8.875%)</span>
               <span style={{ color: GOLD }}>${tax.toFixed(2)}</span>
