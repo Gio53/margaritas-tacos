@@ -21,7 +21,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { MenuItem } from "@/data/menuData";
 import type { OrderExtra } from "@/data/orderOptions";
 import { useCart, computeLineTotal } from "@/contexts/CartContext";
-import { formatQuantityLabel } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -239,9 +238,7 @@ export function CustomizeModal({
                   className="w-16 text-center rounded-md border bg-transparent text-white font-semibold"
                   style={{ borderColor: "rgba(255,248,240,0.3)" }}
                 />
-                <span className="font-medium text-white">
-                  {formatQuantityLabel(categoryId, quantity).replace(/^\d+\s*/, "")}
-                </span>
+                <span className="font-medium text-white">x</span>
               </div>
               <button
                 type="button"

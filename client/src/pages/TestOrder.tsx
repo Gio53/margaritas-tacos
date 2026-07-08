@@ -485,7 +485,7 @@ export default function TestOrder() {
                   >
                     <div>
                       <span className="font-medium">
-                        {line.categoryName} — {line.itemName} × {formatQuantityLabel(line.categoryId, line.quantity)}
+                        {line.categoryName} — {line.itemName} {formatQuantityLabel(line.categoryId, line.quantity)}
                       </span>
                       {formatChoicesLine(line.categoryId, line.choices) && (
                         <p className="text-xs text-gray-600 mt-0.5">

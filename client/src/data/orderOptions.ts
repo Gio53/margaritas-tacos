@@ -146,7 +146,7 @@ export function getOrderOptionsForCategory(categoryId: string): CategoryOrderOpt
   );
 }
 
-/** Line item note for cart / tickets (e.g. "Shell: Hard shell · Sauce: Red sauce"). */
+/** Line item note for cart / tickets (e.g. "Hard shell · Sauce: Red sauce"). */
 export function formatChoicesLine(
   categoryId: string | undefined,
   choices: Record<string, string> | undefined
@@ -157,7 +157,9 @@ export function formatChoicesLine(
     const parts = list
       .map((rc) => {
         const v = choices[rc.id];
-        return v ? `${rc.label}: ${v}` : "";
+        if (!v) return "";
+        if (rc.id === "shell") return v;
+        return `${rc.label}: ${v}`;
       })
       .filter(Boolean);
     return parts.join(" · ");

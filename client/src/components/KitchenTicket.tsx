@@ -70,9 +70,7 @@ export function formatTicketItemName(line: OrderItem): string {
 }
 
 function formatShellChoice(shell: string): string {
-  if (/hard/i.test(shell)) return "Hard/Duro Shell";
-  if (/soft/i.test(shell)) return "Soft Shell";
-  return shell;
+  return shell.trim();
 }
 
 /** Indented modifier lines — no prices, kitchen-style wording. */
@@ -136,7 +134,7 @@ function itemBlockHtml(line: OrderItem): string {
 
   return `<div class="kt-item">
   <div class="kt-item-row">
-    <span class="kt-qty">${qty}</span>
+    <span class="kt-qty">${qty}x</span>
     <span class="kt-name">${escapeHtml(name)}</span>
   </div>
 ${modHtml}
@@ -201,7 +199,7 @@ function TicketItem({ line }: { line: OrderItem }) {
     <>
       <div className="mb-0.5">
         <div className="flex gap-1.5 items-start leading-tight">
-          <span className="font-bold shrink-0 min-w-[1.2em]">{qty}</span>
+          <span className="font-bold shrink-0 min-w-[1.2em]">{qty}x</span>
           <span className="font-bold flex-1 min-w-0">{name}</span>
         </div>
         {mods.map((mod, i) => (

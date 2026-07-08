@@ -21,8 +21,8 @@ export function orderItemChoicesNote(
 ): string {
   if (!choices || typeof choices !== "object") return "";
   if (categoryId === "3-american-tacos") {
-    const shell = choices.shell;
-    return shell ? `Shell: ${shell}` : "";
+    const shell = choices.shell?.trim();
+    return shell ?? "";
   }
   if (categoryId === "enchiladas") {
     const parts: string[] = [];
@@ -70,7 +70,7 @@ export function buildCloverLineNameAndNote(line: CloverReceiptLineInput): {
     addStr = `Add: ${parts.join(", ")}`;
   }
 
-  const qtyLine = qty === 1 ? "1 order" : `${qty} orders`;
+  const qtyLine = `${qty}x`;
 
   const name = `${qtyLine}\n${baseName}`;
 
