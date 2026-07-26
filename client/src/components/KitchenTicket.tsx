@@ -4,6 +4,8 @@
 
 import type { PlacedOrder, OrderItem } from "@/contexts/OrdersContext";
 import { getRequiredChoicesForCategory } from "@/data/orderOptions";
+import { formatQuantityLabel } from "@/lib/utils";
+import { mergeIdenticalOrderLines } from "@shared/orderLineHelpers";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -124,7 +126,7 @@ function formatCustomerLine(order: PlacedOrder): string {
 }
 
 function itemBlockHtml(line: OrderItem): string {
-  const qty = Math.max(1, line.quantity);
+  const qtyLabel = formatQuantityLabel(line.categoryId, line.quantity, line.categoryName);
   const name = formatTicketItemName(line);
   const mods = formatTicketModifiers(line);
 
@@ -134,7 +136,7 @@ function itemBlockHtml(line: OrderItem): string {
 
   return `<div class="kt-item">
   <div class="kt-item-row">
-    <span class="kt-qty">${qty}x</span>
+    <span class="kt-qty">${escapeHtml(qtyLabel)}</span>
     <span class="kt-name">${escapeHtml(name)}</span>
   </div>
 ${modHtml}
@@ -171,7 +173,9 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
   const customer = formatCustomerLine(order);
   const footerId = order.cloverOrderId?.trim() || order.id;
 
-  const itemsHtml = order.items.map((line) => itemBlockHtml(line)).join("\n");
+  const itemsHtml = mergeIdenticalOrderLines(order.items)
+    .map((line) => itemBlockHtml(line as OrderItem))
+    .join("\n");
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Kitchen Ticket</title>
 <style>${ticketStyles}</style>
@@ -191,7 +195,7 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
 }
 
 function TicketItem({ line }: { line: OrderItem }) {
-  const qty = Math.max(1, line.quantity);
+  const qtyLabel = formatQuantityLabel(line.categoryId, line.quantity, line.categoryName);
   const name = formatTicketItemName(line);
   const mods = formatTicketModifiers(line);
 
@@ -199,7 +203,7 @@ function TicketItem({ line }: { line: OrderItem }) {
     <>
       <div className="mb-0.5">
         <div className="flex gap-1.5 items-start leading-tight">
-          <span className="font-bold shrink-0 min-w-[1.2em]">{qty}x</span>
+          <span className="font-bold shrink-0 min-w-[1.2em]">{qtyLabel}</span>
           <span className="font-bold flex-1 min-w-0">{name}</span>
         </div>
         {mods.map((mod, i) => (
@@ -238,8 +242,8 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
         </p>
         <p className="font-bold mb-1.5">Server: WEB ORDER</p>
         <div>
-          {order.items.map((line, idx) => (
-            <TicketItem key={idx} line={line} />
+          {mergeIdenticalOrderLines(order.items).map((line, idx) => (
+            <TicketItem key={idx} line={line as OrderItem} />
           ))}
         </div>
         <p className="text-[11px] mt-1">Order ID: {footerId}</p>

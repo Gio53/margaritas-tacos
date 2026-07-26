@@ -84,6 +84,9 @@ CLOVER_ECOM_API_KEY=your-pakms-ecom-api-key
 # Orders + receipts on Clover Station (full line items, print)
 CLOVER_MERCHANT_ID=your-merchant-id
 CLOVER_API_TOKEN=your-api-token-from-api-tokens-page
+
+# Paid status + your custom tender label on Clover orders (create tender in Dashboard → Payments → Tenders)
+CLOVER_WEBSITE_TENDER_ID=paste-custom-tender-uuid-here
 ```
 
 **Production (e.g. Render):** set the same variables in the service’s **Environment** tab. Never commit real values to git.
@@ -96,10 +99,11 @@ CLOVER_API_TOKEN=your-api-token-from-api-tokens-page
 2. Open the site, go to **Admin** (e.g. http://localhost:5173/admin), log in (password: **2022**).
 3. Click **“Test Clover Integration”** in the header.
    - Success: you’ll see a green message and a Clover Order ID; a **test receipt** (marked “TEST ORDER”) should print on your Clover Station Trio.
-   - Failure: you’ll see an error; check `CLOVER_MERCHANT_ID`, `CLOVER_API_TOKEN`, and that the token has Read/Write Orders.
+   - Failure: you’ll see an error; check `CLOVER_MERCHANT_ID`, `CLOVER_API_TOKEN`, and that the token has Read/Write Orders. If **“Payment on order failed”** appears, confirm `CLOVER_WEBSITE_TENDER_ID` is set and the API token can record payments on orders (regenerate the token with any extra payment scopes Clover offers for your app).
 4. Place a **real order** from the site (cart → checkout).  
    - In Admin you should see the order with a green “Sent to Clover” indicator and a Clover Order ID.  
-   - A full receipt (line items, customer, pickup) should print on the Clover printer.
+   - A full receipt (line items, customer, pickup) should print on the Clover printer.  
+   - In Clover **Orders**, the order should show **Paid** when `CLOVER_WEBSITE_TENDER_ID` is your custom tender’s UUID (see `docs/CLOVER_INTEGRATION.md` for how to list tenders via the API).
 
 ---
 

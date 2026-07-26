@@ -64,8 +64,13 @@ The server already has **POST /api/checkout** that:
 | `CLOVER_SANDBOX` | Set to `true` for sandbox (default). Set to `false` for production. |
 | `CLOVER_MERCHANT_ID` | Merchant ID for **REST API v3** (full orders + receipts). From Dashboard → API Tokens. |
 | `CLOVER_API_TOKEN` | **API Token** from Dashboard → **API Tokens** (not the Ecommerce key). Needs **Read Orders** and **Write Orders**. Used for orders with line items and printing on Clover Station. |
+| `CLOVER_WEBSITE_TENDER_ID` | UUID of a **custom tender** you create in Clover (Setup → Payments → Tenders). After the order is built, the server calls [Create a payment record on an order](https://docs.clover.com/dev/reference/ordercreatepaymentfororder) with this tender so the Dashboard shows **Paid** and your label (e.g. “Website”). Clover requires an **external/custom** tender for this call—not the built-in credit tender. |
+| `CLOVER_WEBSITE_CARD_TENDER_ID` | Optional. Overrides `CLOVER_WEBSITE_TENDER_ID` for **card** checkouts only (e.g. “Website — Card”). |
+| `CLOVER_WEBSITE_CASH_TENDER_ID` | Optional. Overrides `CLOVER_WEBSITE_TENDER_ID` for **cash** checkouts only (e.g. “Website — Pay at pickup”). |
 
-**Clover v3 (full receipts):** After each checkout, the server creates a Clover order with line items and triggers print on your default Clover printer. Set `CLOVER_MERCHANT_ID` and `CLOVER_API_TOKEN` so receipts show item names, quantities, prices, customer info, and special instructions. In the admin dashboard you’ll see Clover sync status, Clover Order ID, “Retry send to Clover,” “View in Clover,” and a **Test Clover** button to verify the integration.
+**Clover v3 (full receipts):** After each checkout, the server creates a Clover order with line items, records a payment on that order when `CLOVER_WEBSITE_TENDER_ID` (or the card/cash overrides) is set, then triggers print on your default Clover printer. Card charges still go through the ecommerce **charge** API first; the payment on the order uses your custom tender for **bookkeeping** in Clover so the order shows paid without charging twice. Set `CLOVER_MERCHANT_ID` and `CLOVER_API_TOKEN` so receipts show item names, quantities, prices, customer info, and special instructions. In the admin dashboard you’ll see Clover sync status, Clover Order ID, “Retry send to Clover,” “View in Clover,” and a **Test Clover** button to verify the integration.
+
+**Find your custom tender’s ID:** `GET https://api.clover.com/v3/merchants/{mId}/tenders` with `Authorization: Bearer {CLOVER_API_TOKEN}` (use the sandbox host in sandbox). Each tender has an `id` and a `label`—copy the `id` for the tender you created for website orders.
 
 **Frontend:** Set `VITE_CHECKOUT_API_URL` to your server URL (e.g. `https://your-app.onrender.com`). Use the same URL as `VITE_ORDERS_API_URL` so orders and checkout use one backend.
 

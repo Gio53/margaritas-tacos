@@ -1,15 +1,21 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatOrderQuantityLabel } from "@shared/orderLineHelpers";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Order quantity for cart, checkout, tickets, and Clover receipts (1x = one order). */
+/** Tacos → "1 order" / "N orders"; other items → "1x" / "Nx". */
 export function formatQuantityLabel(
-  _categoryIdOrName: string | undefined,
-  quantity: number
+  categoryIdOrName: string | undefined,
+  quantity: number,
+  categoryName?: string
 ): string {
-  const qty = Math.max(1, Math.floor(Number(quantity)) || 1);
-  return `${qty}x`;
+  // Call sites sometimes pass categoryName as the first arg when id is missing.
+  return formatOrderQuantityLabel(
+    categoryIdOrName,
+    quantity,
+    categoryName ?? categoryIdOrName
+  );
 }

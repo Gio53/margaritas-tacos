@@ -4,6 +4,8 @@
 // required choices (e.g. shell), No:, Add:
 // ============================================================
 
+import { formatOrderQuantityLabel } from "./orderLineHelpers";
+
 export interface CloverReceiptLineInput {
   categoryId?: string;
   categoryName?: string;
@@ -70,7 +72,7 @@ export function buildCloverLineNameAndNote(line: CloverReceiptLineInput): {
     addStr = `Add: ${parts.join(", ")}`;
   }
 
-  const qtyLine = `${qty}x`;
+  const qtyLine = formatOrderQuantityLabel(line.categoryId, qty, line.categoryName);
 
   const name = `${qtyLine}\n${baseName}`;
 

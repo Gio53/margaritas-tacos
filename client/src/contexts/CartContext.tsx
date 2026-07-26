@@ -6,6 +6,10 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import { toast } from "sonner";
 import type { OrderExtra } from "@/data/orderOptions";
 import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
+import {
+  mergeIdenticalOrderLines,
+  orderLineIdentityKey,
+} from "@shared/orderLineHelpers";
 
 export interface CartLineItem {
   id: string;
@@ -68,10 +72,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item.addExtras,
         item.categoryId
       );
-      setItems((prev) => [
-        ...prev,
-        { ...item, id: generateId(), lineTotal },
-      ]);
+      const incoming: CartLineItem = { ...item, id: generateId(), lineTotal };
+      setItems((prev) => {
+        const key = orderLineIdentityKey(incoming);
+        const matchIdx = prev.findIndex((l) => orderLineIdentityKey(l) === key);
+        if (matchIdx === -1) return [...prev, incoming];
+        // Same item + same mods → bump qty instead of a duplicate row
+        const merged = mergeIdenticalOrderLines([prev[matchIdx], incoming])[0];
+        return prev.map((l, i) =>
+          i === matchIdx ? { ...merged, id: prev[matchIdx].id, basePrice: prev[matchIdx].basePrice } : l
+        );
+      });
     },
     [isOpen, closedMessage]
   );

@@ -7,6 +7,7 @@ import { useOrders } from "@/contexts/OrdersContext";
 import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
+import { mergeIdenticalOrderLines } from "@shared/orderLineHelpers";
 import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
@@ -186,32 +187,37 @@ function OrderCard({
       </div>
 
       <div className="border-t pt-3 mt-3 space-y-2" style={{ borderColor: "rgba(44,24,16,0.1)" }}>
-        {order.items.map((line, idx) => (
+        {mergeIdenticalOrderLines(order.items).map((line, idx) => (
           <div key={idx} className="text-sm">
             <p className="font-semibold" style={{ color: ESPRESSO }}>
-              {line.categoryName} — {line.itemName} {formatQuantityLabel(line.categoryId ?? line.categoryName, line.quantity)}
+              {line.categoryName} — {line.itemName}{" "}
+              {formatQuantityLabel(
+                line.categoryId,
+                line.quantity ?? 1,
+                line.categoryName
+              )}
             </p>
             {(formatChoicesLine(line.categoryId, line.choices) ||
-              line.removeIngredients.length > 0 ||
-              line.addExtras.length > 0) && (
+              (line.removeIngredients?.length ?? 0) > 0 ||
+              (line.addExtras?.length ?? 0) > 0) && (
               <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
                 {formatChoicesLine(line.categoryId, line.choices) && (
                   <>{formatChoicesLine(line.categoryId, line.choices)}</>
                 )}
                 {formatChoicesLine(line.categoryId, line.choices) &&
-                  (line.removeIngredients.length > 0 || line.addExtras.length > 0) &&
+                  ((line.removeIngredients?.length ?? 0) > 0 || (line.addExtras?.length ?? 0) > 0) &&
                   " · "}
-                {line.removeIngredients.length > 0 && (
-                  <>No: {line.removeIngredients.join(", ")}</>
+                {(line.removeIngredients?.length ?? 0) > 0 && (
+                  <>No: {(line.removeIngredients ?? []).join(", ")}</>
                 )}
-                {line.removeIngredients.length > 0 && line.addExtras.length > 0 && " · "}
-                {line.addExtras.length > 0 && (
-                  <>Add: {line.addExtras.map(formatAddExtra).join(", ")}</>
+                {(line.removeIngredients?.length ?? 0) > 0 && (line.addExtras?.length ?? 0) > 0 && " · "}
+                {(line.addExtras?.length ?? 0) > 0 && (
+                  <>Add: {(line.addExtras ?? []).map(formatAddExtra).join(", ")}</>
                 )}
               </p>
             )}
             <p className="text-xs font-semibold mt-0.5" style={{ color: GOLD }}>
-              ${line.lineTotal.toFixed(2)}
+              ${(line.lineTotal ?? 0).toFixed(2)}
             </p>
           </div>
         ))}

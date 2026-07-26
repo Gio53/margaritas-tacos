@@ -8,6 +8,7 @@ import {
   buildCloverLineNameAndNote,
   type CloverReceiptLineInput,
 } from "../shared/cloverReceiptLayout";
+import { mergeIdenticalOrderLines } from "../shared/orderLineHelpers";
 import {
   defaultRestaurantHoursConfig,
   parseRestaurantHoursBody,
@@ -119,9 +120,10 @@ interface StoredOrder {
     itemName?: string;
     quantity?: number;
     removeIngredients?: string[];
-    addExtras?: unknown[];
+    addExtras?: Array<{ name?: string; quantity?: number; price?: number }>;
     lineTotal?: number;
     choices?: Record<string, string>;
+    basePrice?: number;
   }>;
   subtotal?: number;
   tax?: number;
@@ -179,6 +181,15 @@ async function startServer() {
   const CLOVER_MERCHANT_ID = process.env.CLOVER_MERCHANT_ID ?? "";
   const CLOVER_API_TOKEN = process.env.CLOVER_API_TOKEN ?? "";
 
+  /** Tender ID for POST /orders/{id}/payments (external / custom tenders only — see Clover docs). */
+  function resolveWebsitePaymentTenderId(paymentMethod: string | undefined): string {
+    const fallback = (process.env.CLOVER_WEBSITE_TENDER_ID ?? "").trim();
+    const cardT = (process.env.CLOVER_WEBSITE_CARD_TENDER_ID ?? "").trim();
+    const cashT = (process.env.CLOVER_WEBSITE_CASH_TENDER_ID ?? "").trim();
+    if (paymentMethod === "card") return cardT || fallback;
+    return cashT || fallback;
+  }
+
   /**
    * Create a Clover v3 order with line items and trigger print on the merchant's default printer.
    * Uses API Token from Dashboard → API Tokens (Read/Write Orders). Prices in cents.
@@ -225,7 +236,7 @@ async function startServer() {
         return { cloverSyncStatus: "failed", cloverError: "No order id in Clover response" };
       }
 
-      const orderItems = order.items ?? [];
+      const orderItems = mergeIdenticalOrderLines(order.items ?? []);
       for (const line of orderItems) {
         const qty = Math.max(1, line.quantity ?? 1);
         const lineTotal = line.lineTotal ?? 0;
@@ -261,6 +272,44 @@ async function startServer() {
             cloverError: `Line item failed: ${errText.slice(0, 150)}`,
           };
         }
+      }
+
+      const tenderId = resolveWebsitePaymentTenderId(order.paymentMethod);
+      if (tenderId) {
+        let payAmountCents = totalCents;
+        const getOrderRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}`, {
+          headers: { Authorization: `Bearer ${CLOVER_API_TOKEN}` },
+        });
+        if (getOrderRes.ok) {
+          const refreshed = (await getOrderRes.json()) as { total?: number };
+          if (typeof refreshed.total === "number" && refreshed.total > 0) {
+            payAmountCents = refreshed.total;
+          }
+        }
+        const payRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/payments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+          },
+          body: JSON.stringify({
+            amount: payAmountCents,
+            tender: { id: tenderId },
+          }),
+        });
+        if (!payRes.ok) {
+          const payErr = await payRes.text();
+          console.error("Clover order payment error", payRes.status, payErr);
+          return {
+            cloverOrderId,
+            cloverSyncStatus: "failed",
+            cloverError: `Payment on order failed: ${payErr.slice(0, 180)}`,
+          };
+        }
+      } else {
+        console.warn(
+          "Clover order left unpaid in dashboard: set CLOVER_WEBSITE_TENDER_ID (your custom tender UUID) so the API can record payment on the order."
+        );
       }
 
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -429,14 +478,18 @@ async function startServer() {
         }
       }
 
-      // Save order (cash or after successful card charge)
+      // Save order (cash or after successful card charge) — merge identical lines first
+      const newOrderMerged: StoredOrder = {
+        ...newOrder,
+        items: mergeIdenticalOrderLines(newOrder.items ?? []),
+      };
       const orders = await readOrders();
-      orders.unshift(newOrder);
+      orders.unshift(newOrderMerged);
       await writeOrders(orders);
 
-      const cloverResult = await sendOrderToClover(newOrder);
+      const cloverResult = await sendOrderToClover(newOrderMerged);
       const updatedOrder: StoredOrder = {
-        ...newOrder,
+        ...newOrderMerged,
         cloverOrderId: cloverResult.cloverOrderId,
         cloverSyncStatus: cloverResult.cloverSyncStatus,
         cloverError: cloverResult.cloverError,
@@ -476,6 +529,7 @@ async function startServer() {
         status: "pending",
         createdAt: Date.now(),
       };
+      newOrder.items = mergeIdenticalOrderLines(newOrder.items ?? []);
       orders.unshift(newOrder);
       await writeOrders(orders);
 
