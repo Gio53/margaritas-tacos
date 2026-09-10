@@ -254,6 +254,14 @@ export default function Home() {
                 style={{ backgroundColor: "transparent", border: "2px solid #E8A838", color: "#E8A838", fontFamily: "'Oswald', sans-serif", fontSize: "1rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Order Now
               </Link>
+              <a
+                href="https://www.ubereats.com/store/margaritas-tacoss/hMKOxS3gQ-KJ2vtTZcXFTg?diningMode=DELIVERY&ps=1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-3 rounded font-bold transition-all hover:scale-105 flex items-center gap-2"
+                style={{ backgroundColor: "#E8A838", color: "#2C1810", fontFamily: "'Oswald', sans-serif", fontSize: "1rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Delivery
+              </a>
             </div>
           </div>
         </div>
