@@ -180,7 +180,7 @@ export const menuCategories: MenuCategory[] = [
     id: "wet-burrito",
     name: "Wet Burrito",
     badgeColor: "badge-red",
-    description: "Beans, rice, cheese, pico de gallo, guacamole, sour cream, lettuce",
+    description: "Beans, rice, cheese, pico de gallo, guacamole, sour cream, lettuce — choose red or green sauce",
     items: [
       { name: "Grilled Chicken", price: 15.00 },
       { name: "Birria (Brisket, Short Rib)", price: 16.00 },

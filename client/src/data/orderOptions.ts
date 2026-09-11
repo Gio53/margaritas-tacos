@@ -112,6 +112,12 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   "wet-burrito": {
     removeIngredients: ["Beans", "Rice", "Cheese", "Pico de gallo", "Guacamole", "Sour cream", "Lettuce"],
     addExtras: EXTRAS_2,
+    requiredChoice: {
+      id: "sauce",
+      label: "Sauce",
+      prompt: "Choose sauce (required)",
+      options: ["Red sauce", "Green sauce"],
+    },
   },
   nachos: {
     removeIngredients: ["Black beans", "Cheese", "Pico de gallo", "Sour cream", "Guacamole"],

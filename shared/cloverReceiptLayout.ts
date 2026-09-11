@@ -32,7 +32,7 @@ export function orderItemChoicesNote(
     if (choices.tortilla) parts.push(`Tortilla: ${choices.tortilla}`);
     return parts.join("\n\n");
   }
-  if (categoryId === "chilaquiles") {
+  if (categoryId === "chilaquiles" || categoryId === "wet-burrito") {
     const s = choices.sauce;
     return s ? `Sauce: ${s}` : "";
   }
