@@ -2,17 +2,24 @@
 // Shared order-line helpers (cart, Clover, admin, kitchen ticket)
 // ============================================================
 
-/** American + Mexican street taco categories use "order(s)"; everything else uses "Nx". */
+/** Street/American taco packs + taquitos use "order(s)"; everything else uses "Nx". */
 export function isTacoOrderCategory(
   categoryId?: string,
   categoryName?: string
 ): boolean {
   const id = (categoryId ?? "").toLowerCase();
-  if (id === "mexican-street-tacos" || id === "3-american-tacos") return true;
+  if (
+    id === "mexican-street-tacos" ||
+    id === "3-american-tacos" ||
+    id === "taquitos"
+  ) {
+    return true;
+  }
   const name = (categoryName ?? "").toLowerCase();
   return (
     name.includes("mexican street taco") ||
-    name.includes("american taco")
+    name.includes("american taco") ||
+    name.includes("taquito")
   );
 }
 

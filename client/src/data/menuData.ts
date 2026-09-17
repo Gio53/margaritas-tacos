@@ -37,6 +37,16 @@ export const menuCategories: MenuCategory[] = [
     ],
   },
   {
+    id: "taquitos",
+    name: "4 Taquitos",
+    badgeColor: "badge-orange",
+    description: "Served with onions and cilantro",
+    specialNote: "Taquitos are smaller than Mexican Street Tacos",
+    items: [
+      { name: "Pastor", price: 12 },
+    ],
+  },
+  {
     id: "tostadas",
     name: "Tostadas",
     badgeColor: "badge-red",

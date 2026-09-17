@@ -61,6 +61,10 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
     removeIngredients: ["Cilantro", "Onions", "Guacamole"],
     addExtras: EXTRAS_2,
   },
+  taquitos: {
+    removeIngredients: ["Cilantro", "Onions"],
+    addExtras: EXTRAS_2,
+  },
   "3-american-tacos": {
     removeIngredients: ["Lettuce", "Cheese", "Sour Cream", "Tomato"],
     addExtras: EXTRAS_2,

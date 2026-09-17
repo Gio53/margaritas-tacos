@@ -19,6 +19,7 @@ const NACHOS_IMG = "/images/nachos.png";
 // Nav items for menu categories
 const NAV_CATEGORIES = [
   { id: "mexican-street-tacos", label: "Street Tacos" },
+  { id: "taquitos", label: "Taquitos" },
   { id: "tostadas", label: "Tostadas" },
   { id: "chilaquiles", label: "Chilaquiles" },
   { id: "rice-bowls", label: "Rice Bowls" },
