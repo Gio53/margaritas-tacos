@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import SeoHead from "@/components/SeoHead";
 
 const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
@@ -142,7 +143,8 @@ export default function Checkout() {
   if (items.length === 0 && !placing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: BEIGE_BG }}>
-        <p className="text-center text-lg mb-4" style={{ color: ESPRESSO }}>Your cart is empty</p>
+        <SeoHead path="/checkout" />
+        <h1 className="text-center text-lg mb-4 font-bold" style={{ color: ESPRESSO }}>Your cart is empty</h1>
         <Link href="/order" className="font-semibold" style={{ color: GOLD }}>Go to Order</Link>
       </div>
     );
@@ -155,6 +157,7 @@ export default function Checkout() {
         className="min-h-screen flex flex-col items-center justify-center p-6"
         style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
       >
+        <SeoHead path="/checkout" />
         <div className="max-w-md text-center">
           <h1 className="text-xl font-bold mb-3" style={{ color: ESPRESSO }}>
             We're closed
@@ -179,6 +182,7 @@ export default function Checkout() {
       className="min-h-screen flex flex-col md:flex-row"
       style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
     >
+      <SeoHead path="/checkout" />
       <AlertDialog open={showPrepTimeDialog} onOpenChange={setShowPrepTimeDialog}>
         <AlertDialogContent style={{ borderColor: "rgba(44,24,16,0.2)" }}>
           <AlertDialogHeader>

@@ -11,6 +11,7 @@ import { menuCategories } from "@/data/menuData";
 import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
 import { dayName, formatHourForLabel, type DayNum } from "@/utils/hours";
 import { Phone, MapPin, Clock, ChevronDown, Menu, X, Leaf } from "lucide-react";
+import SeoHead from "@/components/SeoHead";
 
 const HERO_IMG = "/images/quesadilla.png";
 const TACOS_IMG = "/images/birria-tacos.png";
@@ -138,6 +139,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FFF8F0", fontFamily: "'Lato', sans-serif" }}>
+      <SeoHead path="/" />
 
       {/* ── TOP HEADER ── */}
       <header
@@ -220,7 +222,11 @@ export default function Home() {
       <section id="hero" className="relative min-h-screen flex items-center overflow-hidden" style={{ paddingTop: "64px" }}>
         {/* Background image */}
         <div className="absolute inset-0">
-          <img src={HERO_IMG} alt="Authentic Mexican Tacos" className="w-full h-full object-cover" />
+          <img
+            src={HERO_IMG}
+            alt="Quesadilla plate with pico de gallo, sour cream, and guacamole at Margaritas Tacos in Island Park, NY"
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(44,24,16,0.82) 0%, rgba(44,24,16,0.55) 50%, rgba(44,24,16,0.3) 100%)" }} />
         </div>
 
@@ -233,13 +239,13 @@ export default function Home() {
               <span className="block mt-1" style={{ color: "#FFD700" }}>PLEASE TELL A STAFF MEMBER IF YOU HAVE A FOOD ALLERGY</span>
             </div>
 
-            <p style={{ fontFamily: "'Oswald', sans-serif", color: "#E8A838", fontSize: "1rem", letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-              Authentic Mexican Street Food
-            </p>
-            <h1 style={{ fontFamily: "'Playfair Display', serif", color: "white", fontSize: "clamp(3rem, 8vw, 5.5rem)", fontWeight: 800, lineHeight: 1.05, marginBottom: "1.5rem" }}>
+            <h1 style={{ fontFamily: "'Oswald', sans-serif", color: "#E8A838", fontSize: "1rem", letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
+              Authentic Mexican Street Food in Island Park, NY
+            </h1>
+            <p style={{ fontFamily: "'Playfair Display', serif", color: "white", fontSize: "clamp(3rem, 8vw, 5.5rem)", fontWeight: 800, lineHeight: 1.05, marginBottom: "1.5rem" }}>
               Margaritas<br />
               <span style={{ color: "#E8A838", fontStyle: "italic" }}>Tacos</span>
-            </h1>
+            </p>
             <p style={{ color: "rgba(255,248,240,0.85)", fontSize: "1.15rem", fontFamily: "'Lato', sans-serif", fontWeight: 300, marginBottom: "2.5rem", maxWidth: "420px", lineHeight: 1.7 }}>
               Handcrafted Mexican street food made with authentic recipes and the freshest ingredients — right in Island Park, NY.
             </p>
@@ -329,10 +335,18 @@ export default function Home() {
             {/* Image grid */}
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-2xl overflow-hidden" style={{ height: "260px", boxShadow: "0 8px 32px rgba(44,24,16,0.18)" }}>
-                <img src={TACOS_IMG} alt="Birria Tacos" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                <img
+                  src={TACOS_IMG}
+                  alt="Birria tacos with cilantro and onions from Margaritas Tacos"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
               </div>
               <div className="rounded-2xl overflow-hidden mt-8" style={{ height: "260px", boxShadow: "0 8px 32px rgba(44,24,16,0.18)" }}>
-                <img src={NACHOS_IMG} alt="Loaded Nachos" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                <img
+                  src={NACHOS_IMG}
+                  alt="Loaded Mexican nachos with cheese, pico de gallo, and guacamole"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
               </div>
             </div>
           </div>

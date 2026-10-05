@@ -795,9 +795,38 @@ async function startServer() {
   // Serve static files only in production when not API-only (e.g. Netlify hosts frontend, Render hosts API)
   if (process.env.NODE_ENV === "production" && !process.env.API_ONLY) {
     const staticPath = path.resolve(__dirname, "public");
-    app.use(express.static(staticPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(staticPath, "index.html"));
+    const spaShellRoutes = new Set([
+      "/",
+      "/order",
+      "/checkout",
+      "/admin",
+      "/test-order",
+      "/receipt-preview",
+      "/404",
+    ]);
+    app.use(express.static(staticPath, { index: false, fallthrough: true }));
+    app.get("*", (req, res) => {
+      const pathname = (req.path || "/").replace(/\/$/, "") || "/";
+      const isSpa =
+        spaShellRoutes.has(pathname) ||
+        pathname.startsWith("/admin/") ||
+        pathname.startsWith("/order/") ||
+        pathname.startsWith("/checkout/");
+      if (isSpa) {
+        // Prefer prerendered folder index when present (e.g. order/index.html)
+        const nested =
+          pathname === "/"
+            ? path.join(staticPath, "index.html")
+            : path.join(staticPath, pathname.replace(/^\//, ""), "index.html");
+        const fallback = path.join(staticPath, "index.html");
+        return res.sendFile(nested, (err) => {
+          if (err) res.sendFile(fallback);
+        });
+      }
+      const notFound = path.join(staticPath, "404.html");
+      res.status(404).sendFile(notFound, (err) => {
+        if (err) res.status(404).send("Not found");
+      });
     });
   } else {
     app.get("*", (_req, res) => res.status(404).json({ error: "Not found" }));

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ShoppingCart, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useRestaurantHours } from "@/contexts/RestaurantHoursContext";
+import SeoHead from "@/components/SeoHead";
 
 const ESPRESSO = "#2C1810";
 const GOLD = "#E8A838";
@@ -80,6 +81,7 @@ export default function OrderPage() {
       className="min-h-screen flex flex-col"
       style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
     >
+      <SeoHead path="/order" />
       <Dialog
         open={showClosedDialog}
         onOpenChange={(open) => {

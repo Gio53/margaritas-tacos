@@ -3,11 +3,35 @@
   command = "npm run build"
   publish = "dist/public"
 
-# SPA: serve index.html for all routes so /admin, /order, etc. don't 404
+# Real files in publish dir (robots.txt, sitemap.xml, order/index.html, 404.html)
+# are served before redirects. Do not catch-all everything to index.html.
+
+# SPA client routes that are not prerendered as folders
 [[redirects]]
-  from = "/*"
+  from = "/admin"
   to = "/index.html"
   status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/test-order"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/receipt-preview"
+  to = "/index.html"
+  status = 200
+
+# Unknown paths → real HTTP 404 (prerendered 404.html)
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
 
 # Env var is set in Netlify dashboard (see DEPLOY.md)
 # VITE_ORDERS_API_URL = https://your-app-name.onrender.com

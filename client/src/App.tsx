@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
+import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
@@ -35,20 +36,22 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
-        <RestaurantHoursProvider>
-          <CartProvider>
-            <OrdersProvider>
-              <MenuAvailabilityProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Router />
-                </TooltipProvider>
-              </MenuAvailabilityProvider>
-            </OrdersProvider>
-          </CartProvider>
-        </RestaurantHoursProvider>
-      </ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider defaultTheme="light">
+          <RestaurantHoursProvider>
+            <CartProvider>
+              <OrdersProvider>
+                <MenuAvailabilityProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Router />
+                  </TooltipProvider>
+                </MenuAvailabilityProvider>
+              </OrdersProvider>
+            </CartProvider>
+          </RestaurantHoursProvider>
+        </ThemeProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

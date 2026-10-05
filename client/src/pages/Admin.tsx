@@ -15,6 +15,7 @@ import {
   ESPRESSO,
   GOLD,
 } from "./admin/adminTheme";
+import SeoHead from "@/components/SeoHead";
 
 export default function Admin() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -54,6 +55,7 @@ export default function Admin() {
         className="min-h-screen flex flex-col items-center justify-center p-6"
         style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
       >
+        <SeoHead path="/admin" />
         <div className="w-full max-w-sm rounded-xl border-2 p-6 bg-white" style={{ borderColor: ESPRESSO }}>
           <h1 className="text-xl font-bold mb-4 text-center" style={{ color: ESPRESSO }}>
             Admin
@@ -96,6 +98,7 @@ export default function Admin() {
       className="min-h-screen flex flex-col"
       style={{ backgroundColor: BEIGE_BG, fontFamily: "'Lato', sans-serif" }}
     >
+      <SeoHead path="/admin" />
       <AdminChrome onLogout={logout} />
       <Switch>
         <Route path="/admin/availability" component={AdminAvailabilityPage} />

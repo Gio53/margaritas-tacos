@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Admin / internal tools - no need to index
+Disallow: /admin
+Disallow: /test-order
+Disallow: /receipt-preview
+
+Sitemap: https://margaritastacos.com/sitemap.xml
