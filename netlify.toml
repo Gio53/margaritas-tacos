@@ -1,6 +1,7 @@
 # Netlify build config (no domain required — you get a free *.netlify.app URL)
 [build]
-  command = "npm run build"
+  # Puppeteer prerender needs a Chrome binary on the build image
+  command = "npx puppeteer browsers install chrome && npm run build"
   publish = "dist/public"
 
 # Real files in publish dir (robots.txt, sitemap.xml, order/index.html, 404.html)
@@ -38,3 +39,4 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  PUPPETEER_CACHE_DIR = "/opt/buildhome/.cache/puppeteer"
