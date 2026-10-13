@@ -24,6 +24,7 @@ function Router() {
       <Route path={"/checkout"} component={Checkout} />
       <Route path={"/admin/availability"} component={Admin} />
       <Route path={"/admin/hours"} component={Admin} />
+      <Route path={"/admin/settings"} component={Admin} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/test-order"} component={TestOrder} />
       <Route path={"/receipt-preview"} component={ReceiptLayoutPreview} />

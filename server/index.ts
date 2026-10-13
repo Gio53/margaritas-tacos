@@ -29,6 +29,52 @@ const DATA_DIR = process.env.MARGARITAS_DATA_DIR?.trim()
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const AVAILABILITY_FILE = path.join(DATA_DIR, "item-availability.json");
 const RESTAURANT_HOURS_FILE = path.join(DATA_DIR, "restaurant-hours.json");
+const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin-settings.json");
+
+const DEFAULT_AUTO_READY_MINUTES = 25;
+const MIN_AUTO_READY_MINUTES = 1;
+const MAX_AUTO_READY_MINUTES = 180;
+
+interface AdminSettings {
+  /** Minutes after order placed before auto Mark Ready + customer notify */
+  autoReadyMinutes: number;
+}
+
+function defaultAdminSettings(): AdminSettings {
+  return { autoReadyMinutes: DEFAULT_AUTO_READY_MINUTES };
+}
+
+function clampAutoReadyMinutes(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  const minutes = Math.floor(n);
+  if (minutes < MIN_AUTO_READY_MINUTES || minutes > MAX_AUTO_READY_MINUTES) return null;
+  return minutes;
+}
+
+function parseAdminSettingsBody(body: unknown): AdminSettings | null {
+  if (!body || typeof body !== "object") return null;
+  const minutes = clampAutoReadyMinutes((body as { autoReadyMinutes?: unknown }).autoReadyMinutes);
+  if (minutes == null) return null;
+  return { autoReadyMinutes: minutes };
+}
+
+async function readAdminSettings(): Promise<AdminSettings> {
+  try {
+    const raw = await fs.readFile(ADMIN_SETTINGS_FILE, "utf-8");
+    const data = JSON.parse(raw) as unknown;
+    const parsed = parseAdminSettingsBody(data);
+    if (parsed) return parsed;
+  } catch {
+    // fall through
+  }
+  return defaultAdminSettings();
+}
+
+async function writeAdminSettings(settings: AdminSettings): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(ADMIN_SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8");
+}
 
 function mergeHoursWithDefaults(partial: RestaurantHoursConfig): RestaurantHoursConfig {
   const base = defaultRestaurantHoursConfig();
@@ -691,6 +737,45 @@ async function startServer() {
     }
   }
 
+  function notifyOrderReady(customer: StoredOrder["customer"] | undefined): void {
+    if (!customer) return;
+    sendOrderReadyEmail(customer.email).catch((e) => console.error("Email send failed", e));
+    sendOrderReadySms(customer.phone).catch((e) => console.error("SMS send failed", e));
+  }
+
+  /** Auto Mark Ready: pending orders older than the Settings delay get marked ready + customer notified. */
+  const AUTO_READY_POLL_MS = 30_000;
+
+  async function autoMarkReadyOrders(): Promise<void> {
+    try {
+      const settings = await readAdminSettings();
+      const autoReadyAfterMs = settings.autoReadyMinutes * 60 * 1000;
+      const orders = await readOrders();
+      const cutoff = Date.now() - autoReadyAfterMs;
+      let changed = false;
+      const newlyReady: StoredOrder[] = [];
+
+      for (let i = 0; i < orders.length; i++) {
+        const order = orders[i];
+        if (order.status !== "pending") continue;
+        const createdAt = typeof order.createdAt === "number" ? order.createdAt : 0;
+        if (!createdAt || createdAt > cutoff) continue;
+        orders[i] = { ...order, status: "ready" };
+        newlyReady.push(orders[i]);
+        changed = true;
+      }
+
+      if (!changed) return;
+      await writeOrders(orders);
+      for (const order of newlyReady) {
+        console.log(`Auto Mark Ready (${settings.autoReadyMinutes} min): ${order.id}`);
+        notifyOrderReady(order.customer);
+      }
+    } catch (e) {
+      console.error("Auto Mark Ready failed", e);
+    }
+  }
+
   app.patch("/api/orders/:id/status", async (req, res) => {
     try {
       const { id } = req.params;
@@ -698,15 +783,16 @@ async function startServer() {
       if (!id || !status || !["pending", "ready", "completed"].includes(status)) {
         return res.status(400).json({ error: "Invalid id or status" });
       }
-      const orders = (await readOrders()) as { id: string; status: string; customer?: { phone?: string; email?: string } }[];
+      const orders = await readOrders();
       const index = orders.findIndex((o) => o.id === id);
       if (index === -1) return res.status(404).json({ error: "Order not found" });
       const order = orders[index];
+      const previousStatus = order.status;
       orders[index] = { ...order, status };
       await writeOrders(orders);
-      if (status === "ready" && order?.customer) {
-        sendOrderReadyEmail(order.customer.email).catch((e) => console.error("Email send failed", e));
-        sendOrderReadySms(order.customer.phone).catch((e) => console.error("SMS send failed", e));
+      // Only notify when transitioning into ready (manual or otherwise)
+      if (status === "ready" && previousStatus !== "ready") {
+        notifyOrderReady(order.customer);
       }
       res.json(orders[index]);
     } catch (e) {
@@ -792,6 +878,32 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin-settings", async (_req, res) => {
+    try {
+      const settings = await readAdminSettings();
+      res.json(settings);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to read admin settings" });
+    }
+  });
+
+  app.post("/api/admin-settings", async (req, res) => {
+    try {
+      const parsed = parseAdminSettingsBody(req.body);
+      if (!parsed) {
+        return res.status(400).json({
+          error: `autoReadyMinutes must be a whole number from ${MIN_AUTO_READY_MINUTES} to ${MAX_AUTO_READY_MINUTES}`,
+        });
+      }
+      await writeAdminSettings(parsed);
+      res.json(parsed);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to save admin settings" });
+    }
+  });
+
   // Serve static files only in production when not API-only (e.g. Netlify hosts frontend, Render hosts API)
   if (process.env.NODE_ENV === "production" && !process.env.API_ONLY) {
     const staticPath = path.resolve(__dirname, "public");
@@ -837,8 +949,18 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     console.log(
-      `GET/POST /api/orders, PATCH /api/orders/:id/status, GET/POST /api/menu-availability, GET/POST /api/restaurant-hours`
+      `GET/POST /api/orders, PATCH /api/orders/:id/status, GET/POST /api/menu-availability, GET/POST /api/restaurant-hours, GET/POST /api/admin-settings`
     );
+    // Mark pending orders ready after the Settings delay so customers get the ready SMS/email
+    void autoMarkReadyOrders();
+    setInterval(() => {
+      void autoMarkReadyOrders();
+    }, AUTO_READY_POLL_MS);
+    void readAdminSettings().then((s) => {
+      console.log(
+        `Auto Mark Ready: every ${AUTO_READY_POLL_MS / 1000}s; delay = ${s.autoReadyMinutes} min (change in Admin → Settings)`
+      );
+    });
   });
 }
 

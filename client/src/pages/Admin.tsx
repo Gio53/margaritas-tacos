@@ -1,5 +1,5 @@
 // ============================================================
-// Admin — password gate + sectioned pages (orders / availability / hours)
+// Admin — password gate + sectioned pages (orders / availability / hours / settings)
 // ============================================================
 
 import { useState, useEffect } from "react";
@@ -8,6 +8,7 @@ import { AdminChrome } from "./admin/AdminChrome";
 import AdminOrdersPage from "./admin/AdminOrdersPage";
 import AdminAvailabilityPage from "./admin/AdminAvailabilityPage";
 import AdminHoursPage from "./admin/AdminHoursPage";
+import AdminSettingsPage from "./admin/AdminSettingsPage";
 import {
   ADMIN_SESSION_KEY,
   ADMIN_PASSWORD,
@@ -103,6 +104,7 @@ export default function Admin() {
       <Switch>
         <Route path="/admin/availability" component={AdminAvailabilityPage} />
         <Route path="/admin/hours" component={AdminHoursPage} />
+        <Route path="/admin/settings" component={AdminSettingsPage} />
         <Route path="/admin" component={AdminOrdersPage} />
       </Switch>
     </div>

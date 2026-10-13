@@ -7,6 +7,7 @@ export function AdminChrome({ onLogout }: { onLogout: () => void }) {
   const isOrders = loc === "/admin" || loc === "/admin/";
   const isAvail = loc.startsWith("/admin/availability");
   const isHours = loc.startsWith("/admin/hours");
+  const isSettings = loc.startsWith("/admin/settings");
 
   const tab = (href: string, label: string, active: boolean) => (
     <Link
@@ -69,6 +70,7 @@ export function AdminChrome({ onLogout }: { onLogout: () => void }) {
         {tab("/admin", "Orders", isOrders)}
         {tab("/admin/availability", "Menu availability", isAvail)}
         {tab("/admin/hours", "Hours & closures", isHours)}
+        {tab("/admin/settings", "Settings", isSettings)}
       </nav>
     </header>
   );
