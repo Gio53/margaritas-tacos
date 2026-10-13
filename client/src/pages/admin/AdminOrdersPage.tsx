@@ -12,6 +12,7 @@ import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, L
 import { toast } from "sonner";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 import { ESPRESSO, GOLD, API_BASE } from "./adminTheme";
+import { OrdersSectionNav } from "./OrdersSectionNav";
 
 const BEIGE_BG = "#FFF8F0";
 const PENDING_COLOR = "#DC2626";
@@ -489,6 +490,7 @@ export default function AdminOrdersPage() {
   return (
     <>
       <div className="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full" style={{ fontFamily: "'Lato', sans-serif" }}>
+        <OrdersSectionNav />
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h2 className="text-lg font-bold" style={{ color: ESPRESSO }}>
             Orders

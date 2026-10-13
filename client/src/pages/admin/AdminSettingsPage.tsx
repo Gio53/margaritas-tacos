@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { API_BASE, ESPRESSO, GOLD } from "./adminTheme";
+import { OrdersSectionNav } from "./OrdersSectionNav";
 
 const DEFAULT_MINUTES = 25;
 const MIN_MINUTES = 1;
@@ -81,6 +82,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="flex-1 p-4 md:p-6 max-w-xl mx-auto w-full space-y-6">
+      <OrdersSectionNav />
       <section
         className="rounded-xl border-2 p-4 bg-white"
         style={{ borderColor: "rgba(44,24,16,0.15)" }}

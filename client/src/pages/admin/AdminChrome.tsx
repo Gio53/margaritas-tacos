@@ -4,10 +4,11 @@ import { ESPRESSO, GOLD } from "./adminTheme";
 
 export function AdminChrome({ onLogout }: { onLogout: () => void }) {
   const [loc] = useLocation();
-  const isOrders = loc === "/admin" || loc === "/admin/";
+  const isSettings = loc.startsWith("/admin/settings");
+  // Settings lives under the Orders section (not a top-level admin tab)
+  const isOrders = loc === "/admin" || loc === "/admin/" || isSettings;
   const isAvail = loc.startsWith("/admin/availability");
   const isHours = loc.startsWith("/admin/hours");
-  const isSettings = loc.startsWith("/admin/settings");
 
   const tab = (href: string, label: string, active: boolean) => (
     <Link
@@ -70,7 +71,6 @@ export function AdminChrome({ onLogout }: { onLogout: () => void }) {
         {tab("/admin", "Orders", isOrders)}
         {tab("/admin/availability", "Menu availability", isAvail)}
         {tab("/admin/hours", "Hours & closures", isHours)}
-        {tab("/admin/settings", "Settings", isSettings)}
       </nav>
     </header>
   );
