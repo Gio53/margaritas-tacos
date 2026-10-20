@@ -44,7 +44,7 @@ export const menuCategories: MenuCategory[] = [
     description: "Served with onions and cilantro",
     specialNote: "Taquitos are smaller than Mexican Street Tacos",
     items: [
-      { name: "Pastor", price: 12 },
+      { name: "Pastor", price: 14.00 },
     ],
   },
   {
@@ -237,13 +237,5 @@ export const menuCategories: MenuCategory[] = [
       { name: "Rice and Beans", price: 7.00 },
     ],
   },
-  {
-    id: "4-taquitos",
-    name: "4 Taquitos",
-    badgeColor: "badge-orange",
-    description: "Rolled tacos, deep fried and crispy",
-    items: [
-      { name: "Pastor Taquitos", price: 14.00, note: "Smaller than Mexican Tacos, comes with Onions & Cilantro" },
-    ],
-  },
+
 ];

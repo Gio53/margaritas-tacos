@@ -33,7 +33,6 @@ const NAV_CATEGORIES = [
   { id: "nachos", label: "Nachos" },
   { id: "enchiladas", label: "Enchiladas" },
   { id: "sides", label: "Sides" },
-  { id: "4-taquitos", label: "4 Taquitos" },
 ];
 
 function useScrollSpy(ids: string[]) {
