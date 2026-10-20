@@ -101,10 +101,6 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
     removeIngredients: [],
     addExtras: EXTRAS_2,
   },
-  "mexican-nachos": {
-    removeIngredients: ["Black beans", "Cheese", "Pico de gallo", "Sour cream", "Guacamole"],
-    addExtras: EXTRAS_2,
-  },
   torta: {
     removeIngredients: ["Refried beans", "Cheese", "Tomato", "Lettuce", "Onion", "Avocado"],
     addExtras: EXTRAS_2,
@@ -125,6 +121,14 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
   },
   nachos: {
     removeIngredients: ["Black beans", "Cheese", "Pico de gallo", "Sour cream", "Guacamole"],
+    addExtras: EXTRAS_2,
+  },
+  sides: {
+    removeIngredients: [],
+    addExtras: [],
+  },
+  "4-taquitos": {
+    removeIngredients: ["Onions", "Cilantro"],
     addExtras: EXTRAS_2,
   },
   enchiladas: {

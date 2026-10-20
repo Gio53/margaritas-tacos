@@ -27,12 +27,13 @@ const NAV_CATEGORIES = [
   { id: "burrito", label: "Burritos" },
   { id: "quesadillas", label: "Quesadillas" },
   { id: "3-american-tacos", label: "American Tacos" },
-  { id: "mexican-nachos", label: "Mexican Nachos" },
   { id: "torta", label: "Torta" },
   { id: "flautas", label: "Flautas" },
   { id: "wet-burrito", label: "Wet Burrito" },
   { id: "nachos", label: "Nachos" },
   { id: "enchiladas", label: "Enchiladas" },
+  { id: "sides", label: "Sides" },
+  { id: "4-taquitos", label: "4 Taquitos" },
 ];
 
 function useScrollSpy(ids: string[]) {
