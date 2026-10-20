@@ -44,7 +44,7 @@ export const menuCategories: MenuCategory[] = [
     description: "Served with onions and cilantro",
     specialNote: "Taquitos are smaller than Mexican Street Tacos",
     items: [
-      { name: "Pastor", price: 14.00 },
+      { name: "Pastor", price: 10 },
     ],
   },
   {
