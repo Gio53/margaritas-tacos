@@ -180,6 +180,40 @@ interface StoredOrder {
   cloverOrderId?: string;
   cloverSyncStatus?: "pending" | "synced" | "failed";
   cloverError?: string;
+  /** Clover Ecommerce charge id (chrg-...) from the card payment, for reconciliation if the save crashes mid-checkout */
+  cloverChargeId?: string;
+}
+
+/** A line item body for the Clover bulk_line_items endpoint. */
+interface CloverLineBody {
+  name: string;
+  price: number;
+  note?: string;
+}
+
+/** Build Clover line item bodies from merged order lines, ready for bulk_line_items. */
+function buildCloverLineBodies(items: StoredOrder["items"]): CloverLineBody[] {
+  const orderItems = mergeIdenticalOrderLines(items ?? []);
+  const bodies: CloverLineBody[] = [];
+  for (const line of orderItems) {
+    const qty = Math.max(1, line.quantity ?? 1);
+    const { name, lineNote } = buildCloverLineNameAndNote({
+      categoryId: line.categoryId,
+      categoryName: line.categoryName,
+      itemName: line.itemName,
+      quantity: qty,
+      removeIngredients: line.removeIngredients,
+      addExtras: (line.addExtras ?? []) as CloverReceiptLineInput["addExtras"],
+      choices: line.choices,
+    });
+    /* Full line total, no unitQty — quantity is only in `name` / `note` so Clover does not repeat it in a qty column + "each". */
+    bodies.push({
+      name,
+      price: Math.round((line.lineTotal ?? 0) * 100),
+      ...(lineNote && { note: lineNote }),
+    });
+  }
+  return bodies;
 }
 
 async function readOrders(): Promise<StoredOrder[]> {
@@ -258,99 +292,161 @@ async function startServer() {
     const orderNote = noteLines.join("\n");
 
     try {
-      const createRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${CLOVER_API_TOKEN}`,
-        },
-        body: JSON.stringify({
-          state: "Open",
-          total: totalCents,
-          currency: "USD",
-          note: orderNote,
-        }),
-      });
-      if (!createRes.ok) {
-        const errText = await createRes.text();
-        console.error("Clover create order error", createRes.status, errText);
-        return { cloverSyncStatus: "failed", cloverError: errText.slice(0, 200) };
-      }
-      const created = (await createRes.json()) as { id?: string };
-      const cloverOrderId = created.id;
-      if (!cloverOrderId) {
-        return { cloverSyncStatus: "failed", cloverError: "No order id in Clover response" };
-      }
+      let cloverOrderId = order.cloverOrderId?.trim() || "";
+      let resumed = false;
+      let orderTotalCents: number | null = null;
 
-      const orderItems = mergeIdenticalOrderLines(order.items ?? []);
-      for (const line of orderItems) {
-        const qty = Math.max(1, line.quantity ?? 1);
-        const lineTotal = line.lineTotal ?? 0;
-        const { name, lineNote } = buildCloverLineNameAndNote({
-          categoryId: line.categoryId,
-          categoryName: line.categoryName,
-          itemName: line.itemName,
-          quantity: qty,
-          removeIngredients: line.removeIngredients,
-          addExtras: (line.addExtras ?? []) as CloverReceiptLineInput["addExtras"],
-          choices: line.choices,
-        });
-        /* Full line total, no unitQty — quantity is only in `name` / `note` so Clover does not repeat it in a qty column + "each". */
-        const lineBody: Record<string, unknown> = {
-          name,
-          price: Math.round(lineTotal * 100),
-          ...(lineNote && { note: lineNote }),
-        };
-        const lineRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${CLOVER_API_TOKEN}`,
-          },
-          body: JSON.stringify(lineBody),
-        });
-        if (!lineRes.ok) {
-          const errText = await lineRes.text();
-          console.error("Clover line item error", lineRes.status, errText);
-          return {
-            cloverOrderId,
-            cloverSyncStatus: "failed",
-            cloverError: `Line item failed: ${errText.slice(0, 150)}`,
-          };
-        }
-      }
-
-      const tenderId = resolveWebsitePaymentTenderId(order.paymentMethod);
-      if (tenderId) {
-        let payAmountCents = totalCents;
-        const getOrderRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}`, {
+      /* Retry/resume: reuse the existing Clover order instead of creating a duplicate. */
+      if (cloverOrderId) {
+        const existingRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}`, {
           headers: { Authorization: `Bearer ${CLOVER_API_TOKEN}` },
         });
-        if (getOrderRes.ok) {
-          const refreshed = (await getOrderRes.json()) as { total?: number };
-          if (typeof refreshed.total === "number" && refreshed.total > 0) {
-            payAmountCents = refreshed.total;
+        if (existingRes.ok) {
+          const existing = (await existingRes.json()) as { total?: number };
+          resumed = true;
+          if (typeof existing.total === "number" && existing.total > 0) {
+            orderTotalCents = existing.total;
           }
+        } else {
+          const warnText = await existingRes.text().catch(() => "");
+          console.warn(
+            `Clover order ${cloverOrderId} not reusable (GET ${existingRes.status}), creating a new order`,
+            warnText.slice(0, 150)
+          );
+          cloverOrderId = "";
         }
-        const payRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/payments`, {
+      }
+
+      if (!cloverOrderId) {
+        const createRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${CLOVER_API_TOKEN}`,
           },
           body: JSON.stringify({
-            amount: payAmountCents,
-            tender: { id: tenderId },
+            state: "Open",
+            total: totalCents,
+            currency: "USD",
+            note: orderNote,
           }),
         });
-        if (!payRes.ok) {
-          const payErr = await payRes.text();
-          console.error("Clover order payment error", payRes.status, payErr);
-          return {
-            cloverOrderId,
-            cloverSyncStatus: "failed",
-            cloverError: `Payment on order failed: ${payErr.slice(0, 180)}`,
+        if (!createRes.ok) {
+          const errText = await createRes.text();
+          console.error("Clover create order error", createRes.status, errText);
+          return { cloverSyncStatus: "failed", cloverError: errText.slice(0, 200) };
+        }
+        const created = (await createRes.json()) as { id?: string };
+        cloverOrderId = created.id ?? "";
+        if (!cloverOrderId) {
+          return { cloverSyncStatus: "failed", cloverError: "No order id in Clover response" };
+        }
+      }
+
+      /* One bulk request for all line items instead of one POST per line (per-line POSTs hit 429 rate limits). */
+      const lineBodies = buildCloverLineBodies(order.items);
+      let pendingBodies = lineBodies;
+      if (resumed) {
+        const existingLinesRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/line_items`, {
+          headers: { Authorization: `Bearer ${CLOVER_API_TOKEN}` },
+        });
+        if (existingLinesRes.ok) {
+          const existingLines = (await existingLinesRes.json()) as {
+            elements?: Array<{ name?: string; price?: number }>;
           };
+          /* Count-based (multiset) matching so two legitimate identical lines never wrongly dedupe each other. */
+          const present = new Map<string, number>();
+          for (const li of existingLines.elements ?? []) {
+            const key = `${li.name ?? ""}|${li.price ?? 0}`;
+            present.set(key, (present.get(key) ?? 0) + 1);
+          }
+          pendingBodies = lineBodies.filter((body) => {
+            const key = `${body.name}|${body.price}`;
+            const remaining = present.get(key) ?? 0;
+            if (remaining > 0) {
+              present.set(key, remaining - 1);
+              return false;
+            }
+            return true;
+          });
+        } else {
+          console.warn(
+            `Could not list existing line items for Clover order ${cloverOrderId} (${existingLinesRes.status}); re-sending all lines`
+          );
+        }
+      }
+
+      if (pendingBodies.length === 0) {
+        console.log(`Clover order ${cloverOrderId} already has all line items; skipping upload`);
+      } else {
+        for (let i = 0; i < pendingBodies.length; i += 100) {
+          const pendingChunk = pendingBodies.slice(i, i + 100);
+          const bulkRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/bulk_line_items`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+            },
+            body: JSON.stringify({ items: pendingChunk }),
+          });
+          if (!bulkRes.ok) {
+            const errText = await bulkRes.text();
+            console.error("Clover bulk line items error", bulkRes.status, errText);
+            return {
+              cloverOrderId,
+              cloverSyncStatus: "failed",
+              cloverError: `Bulk line items failed: ${errText.slice(0, 150)}`,
+            };
+          }
+        }
+      }
+
+      const tenderId = resolveWebsitePaymentTenderId(order.paymentMethod);
+      if (tenderId) {
+        let payAmountCents = resumed && orderTotalCents ? orderTotalCents : totalCents;
+        let skipPayment = false;
+        if (resumed) {
+          /* Never double-charge on retry: skip payment if the order already has payments. */
+          const paymentsRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/payments`, {
+            headers: { Authorization: `Bearer ${CLOVER_API_TOKEN}` },
+          });
+          if (!paymentsRes.ok) {
+            /* Cannot confirm payment state: fail the sync instead of risking a double charge. */
+            const errText = await paymentsRes.text().catch(() => "");
+            console.error("Clover payments check error", paymentsRes.status, errText);
+            return {
+              cloverOrderId,
+              cloverSyncStatus: "failed",
+              cloverError: `Could not verify existing payments (GET ${paymentsRes.status}); payment skipped to avoid double charge`,
+            };
+          }
+          const payments = (await paymentsRes.json()) as { elements?: unknown[] };
+          if ((payments.elements ?? []).length > 0) {
+            console.log(`Clover order ${cloverOrderId} already has payments; skipping payment`);
+            skipPayment = true;
+          }
+        }
+        if (!skipPayment) {
+          const payRes = await fetch(`${CLOVER_V3_BASE}/v3/merchants/${mId}/orders/${cloverOrderId}/payments`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${CLOVER_API_TOKEN}`,
+            },
+            body: JSON.stringify({
+              amount: payAmountCents,
+              tender: { id: tenderId },
+            }),
+          });
+          if (!payRes.ok) {
+            const payErr = await payRes.text();
+            console.error("Clover order payment error", payRes.status, payErr);
+            return {
+              cloverOrderId,
+              cloverSyncStatus: "failed",
+              cloverError: `Payment on order failed: ${payErr.slice(0, 180)}`,
+            };
+          }
         }
       } else {
         console.warn(
@@ -451,6 +547,7 @@ async function startServer() {
         createdAt: Date.now(),
       };
 
+      let cloverChargeId: string | undefined;
       if (paymentMethod === "card" && card) {
         const accessToken = process.env.CLOVER_ACCESS_TOKEN;
         const ecomKey = process.env.CLOVER_ECOM_API_KEY;
@@ -522,12 +619,15 @@ async function startServer() {
           }
           return res.status(402).json({ error: msg });
         }
+        const chargeData = (await chargeRes.json()) as { id?: string };
+        cloverChargeId = chargeData.id;
       }
 
       // Save order (cash or after successful card charge) — merge identical lines first
       const newOrderMerged: StoredOrder = {
         ...newOrder,
         items: mergeIdenticalOrderLines(newOrder.items ?? []),
+        ...(cloverChargeId && { cloverChargeId }),
       };
       const orders = await readOrders();
       orders.unshift(newOrderMerged);
