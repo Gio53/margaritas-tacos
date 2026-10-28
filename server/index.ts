@@ -261,7 +261,7 @@ function parsePhoneOrderBody(body: unknown): { error: string } | { order: Stored
   const firstName = typeof c.firstName === "string" ? c.firstName.trim() : "";
   const phone = typeof c.phone === "string" ? c.phone.trim() : "";
   if (!firstName) return { error: "customer.firstName is required (string)" };
-  if (!phone) return { error: "customer.phone is required (string)" };
+  /* Phone is optional: AI-assistant callers sometimes order without giving a number. */
 
   if (!Array.isArray(b.items) || b.items.length < 1) {
     return { error: "items is required (non-empty array)" };

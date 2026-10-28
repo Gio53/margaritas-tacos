@@ -39,7 +39,7 @@ All amounts are **dollars** (decimals, e.g. `13.5`), not cents.
   "customer": {
     "firstName": "Maria",          // required
     "lastName": "Lopez",           // optional
-    "phone": "516-555-0123",       // required
+    "phone": "516-555-0123",       // optional (callers sometimes order without one)
     "email": "maria@example.com"   // optional
   },
   "items": [                        // required, 1–50 lines
