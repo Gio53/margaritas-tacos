@@ -8,7 +8,7 @@ import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { mergeIdenticalOrderLines } from "@shared/orderLineHelpers";
-import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2, Phone } from "lucide-react";
+import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2, Phone, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 import { ESPRESSO, GOLD, API_BASE } from "./adminTheme";
@@ -370,6 +370,7 @@ export default function AdminOrdersPage() {
   const [orderToPrint, setOrderToPrint] = useState<PlacedOrder | null>(null);
   const [testCloverResult, setTestCloverResult] = useState<{ success: boolean; cloverOrderId?: string; error?: string } | null>(null);
   const [retryMessage, setRetryMessage] = useState<{ orderId: string; success: boolean; error?: string } | null>(null);
+  const [soundTestResult, setSoundTestResult] = useState<string | null>(null);
 
   const {
     orders,
@@ -495,6 +496,30 @@ export default function AdminOrdersPage() {
     stopAlarmRef.current = null;
   };
 
+  /** Play one phone-ring cycle so staff can verify the speaker/alarm works. */
+  const handleTestSound = () => {
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+        audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      void ctx.resume();
+      stopAlarmRef.current?.();
+      const stop = startNewOrderAlarm(ctx, "phone");
+      setTimeout(stop, 2600);
+      setTimeout(() => {
+        setSoundTestResult(
+          ctx.state === "running"
+            ? `Audio context running — if you heard a phone ring, sound works. Nothing? Check the tab isn't muted (right-click the tab) and system volume.`
+            : `Audio context is ${ctx.state} — click anywhere on the page once, then test again.`
+        );
+        setTimeout(() => setSoundTestResult(null), 8000);
+      }, 2700);
+    } catch (e) {
+      setSoundTestResult(`Audio error: ${String(e)}`);
+    }
+  };
+
   // Stop the new-order alarm when user presses Spacebar
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -559,6 +584,18 @@ export default function AdminOrdersPage() {
               <span className="text-xs px-2 py-1 rounded border" style={{ borderColor: "rgba(44,24,16,0.2)", color: "#6B7280" }}>
                 Synced
               </span>
+            )}
+            {API_BASE && (
+              <button
+                type="button"
+                onClick={handleTestSound}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+                style={{ borderColor: ESPRESSO, color: ESPRESSO }}
+                title="Play the phone-order ring so you can verify the speaker works (2.5 seconds)"
+              >
+                <Volume2 className="size-4" />
+                Test sound
+              </button>
             )}
             {API_BASE && (
               <button
@@ -666,6 +703,14 @@ export default function AdminOrdersPage() {
                 <strong style={{ color: PENDING_COLOR }}>Clover test failed:</strong> {testCloverResult.error ?? "Unknown error"}
               </>
             )}
+          </div>
+        )}
+        {soundTestResult != null && (
+          <div
+            className="mb-4 p-3 rounded-lg border text-sm"
+            style={{ backgroundColor: "rgba(124,58,237,0.08)", borderColor: PHONE_COLOR, color: ESPRESSO }}
+          >
+            {soundTestResult}
           </div>
         )}
         {isLoading ? (
