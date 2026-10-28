@@ -21,12 +21,7 @@ const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
 const PHONE_COLOR = "#7C3AED";
 
-/**
- * Start a repeating alarm-clock style sound for new orders — a classic phone
- * ring (440+480 Hz two-tone, two bursts per cycle) for BOTH web and AI phone
- * orders. Returns a function to stop it. Uses a context resumed after user
- * gesture.
- */
+/** Start a repeating alarm-clock style sound. Returns a function to stop it. Uses a context resumed after user gesture. */
 function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let gainNode: GainNode | null = null;
@@ -40,27 +35,25 @@ function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
     if (audioContext.state === "suspended") void audioContext.resume();
     gainNode = audioContext.createGain();
     gainNode.connect(audioContext.destination);
-    gainNode.gain.value = 0.12;
+    gainNode.gain.value = 0.25;
 
-    /** Classic phone ring: 440+480 Hz mixed sine, two bursts per cycle. */
-    const playRingBurst = (start: number) => {
-      for (const freq of [440, 480]) {
-        const osc = audioContext.createOscillator();
-        osc.connect(gainNode!);
-        osc.frequency.value = freq;
-        osc.type = "sine";
-        osc.start(start);
-        osc.stop(start + 0.75);
-      }
+    const playBeep = (freq: number, start: number, duration: number) => {
+      const osc = audioContext.createOscillator();
+      osc.connect(gainNode!);
+      osc.frequency.value = freq;
+      osc.type = "square";
+      osc.start(start);
+      osc.stop(start + duration);
     };
-    const playRing = () => {
+
+    const playTwoBeeps = () => {
       const now = audioContext.currentTime;
-      playRingBurst(now);
-      playRingBurst(now + 1.15);
+      playBeep(880, now, 0.12);
+      playBeep(880, now + 0.2, 0.12);
     };
 
-    playRing();
-    intervalId = setInterval(playRing, 3500);
+    playTwoBeeps();
+    intervalId = setInterval(playTwoBeeps, 1000);
   } catch {
     // ignore
   }
