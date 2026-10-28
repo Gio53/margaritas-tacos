@@ -22,14 +22,12 @@ const TOTAL_COLOR = "#EA580C";
 const PHONE_COLOR = "#7C3AED";
 
 /**
- * Start a repeating alarm-clock style sound. kind "phone" (AI Phone Assistant)
- * sounds like an actual phone ringing (two-tone 440+480 Hz ring cadence).
- * Returns a function to stop it. Uses a context resumed after user gesture.
+ * Start a repeating alarm-clock style sound for new orders — a classic phone
+ * ring (440+480 Hz two-tone, two bursts per cycle) for BOTH web and AI phone
+ * orders. Returns a function to stop it. Uses a context resumed after user
+ * gesture.
  */
-function startNewOrderAlarm(
-  ctx: AudioContext | null | undefined,
-  kind: "web" | "phone" = "web"
-): () => void {
+function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let gainNode: GainNode | null = null;
   try {
@@ -42,16 +40,7 @@ function startNewOrderAlarm(
     if (audioContext.state === "suspended") void audioContext.resume();
     gainNode = audioContext.createGain();
     gainNode.connect(audioContext.destination);
-    gainNode.gain.value = kind === "phone" ? 0.12 : 0.25;
-
-    const playBeep = (freq: number, start: number, duration: number) => {
-      const osc = audioContext.createOscillator();
-      osc.connect(gainNode!);
-      osc.frequency.value = freq;
-      osc.type = "square";
-      osc.start(start);
-      osc.stop(start + duration);
-    };
+    gainNode.gain.value = 0.12;
 
     /** Classic phone ring: 440+480 Hz mixed sine, two bursts per cycle. */
     const playRingBurst = (start: number) => {
@@ -64,19 +53,14 @@ function startNewOrderAlarm(
         osc.stop(start + 0.75);
       }
     };
-    const playPattern = () => {
+    const playRing = () => {
       const now = audioContext.currentTime;
-      if (kind === "phone") {
-        playRingBurst(now);
-        playRingBurst(now + 1.15);
-      } else {
-        playBeep(880, now, 0.12);
-        playBeep(880, now + 0.2, 0.12);
-      }
+      playRingBurst(now);
+      playRingBurst(now + 1.15);
     };
 
-    playPattern();
-    intervalId = setInterval(playPattern, kind === "phone" ? 3500 : 1000);
+    playRing();
+    intervalId = setInterval(playRing, 3500);
   } catch {
     // ignore
   }
@@ -485,9 +469,8 @@ export default function AdminOrdersPage() {
     const newOrders = orders.filter((o) => newIds.includes(o.id));
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
-    const hasPhoneOrder = newPending.some((o) => o.source === "phone");
     stopAlarmRef.current?.();
-    stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current, hasPhoneOrder ? "phone" : "web");
+    stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
     // Alarm plays until user presses Spacebar to stop (see keydown listener below)
   }, [orders, useApi]);
 
@@ -505,7 +488,7 @@ export default function AdminOrdersPage() {
       const ctx = audioContextRef.current;
       void ctx.resume();
       stopAlarmRef.current?.();
-      const stop = startNewOrderAlarm(ctx, "phone");
+      const stop = startNewOrderAlarm(ctx);
       setTimeout(stop, 2600);
       setTimeout(() => {
         setSoundTestResult(
