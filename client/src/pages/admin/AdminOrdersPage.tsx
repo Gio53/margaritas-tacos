@@ -8,7 +8,7 @@ import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { mergeIdenticalOrderLines } from "@shared/orderLineHelpers";
-import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2, Phone } from "lucide-react";
 import { toast } from "sonner";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 import { ESPRESSO, GOLD, API_BASE } from "./adminTheme";
@@ -19,9 +19,17 @@ const PENDING_COLOR = "#DC2626";
 const READY_COLOR = "#16A34A";
 const COMPLETED_COLOR = "#2563EB";
 const TOTAL_COLOR = "#EA580C";
+const PHONE_COLOR = "#7C3AED";
 
-/** Start a repeating alarm-clock style sound. Returns a function to stop it. Uses a context resumed after user gesture. */
-function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
+/**
+ * Start a repeating alarm-clock style sound. kind "phone" (AI Phone Assistant) plays a
+ * faster, higher-pitched triple-beep so staff can tell it apart from a web order.
+ * Returns a function to stop it. Uses a context resumed after user gesture.
+ */
+function startNewOrderAlarm(
+  ctx: AudioContext | null | undefined,
+  kind: "web" | "phone" = "web"
+): () => void {
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let gainNode: GainNode | null = null;
   try {
@@ -41,14 +49,20 @@ function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
       osc.stop(start + duration);
     };
 
-    const playTwoBeeps = () => {
+    const playPattern = () => {
       const now = audioContext.currentTime;
-      playBeep(880, now, 0.12);
-      playBeep(880, now + 0.2, 0.12);
+      if (kind === "phone") {
+        playBeep(1245, now, 0.09);
+        playBeep(1245, now + 0.13, 0.09);
+        playBeep(1245, now + 0.26, 0.09);
+      } else {
+        playBeep(880, now, 0.12);
+        playBeep(880, now + 0.2, 0.12);
+      }
     };
 
-    playTwoBeeps();
-    intervalId = setInterval(playTwoBeeps, 1000);
+    playPattern();
+    intervalId = setInterval(playPattern, kind === "phone" ? 800 : 1000);
   } catch {
     // ignore
   }
@@ -123,6 +137,7 @@ function OrderCard({
   const cloverSynced = order.cloverSyncStatus === "synced";
   const cloverFailed = order.cloverSyncStatus === "failed";
   const cloverPending = !order.cloverSyncStatus || order.cloverSyncStatus === "pending";
+  const isPhoneOrder = order.source === "phone";
   const viewInCloverUrl = order.cloverOrderId
     ? `https://www.clover.com/dashboard/orders/${encodeURIComponent(order.cloverOrderId)}`
     : "https://www.clover.com/dashboard/orders";
@@ -132,7 +147,7 @@ function OrderCard({
   return (
     <div
       className="rounded-xl border p-4 bg-white"
-      style={{ borderColor: "rgba(44,24,16,0.15)" }}
+      style={{ borderColor: isPhoneOrder ? "rgba(124,58,237,0.45)" : "rgba(44,24,16,0.15)" }}
     >
       <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
         <div>
@@ -143,10 +158,34 @@ function OrderCard({
             {[order.customer.phone, order.customer.email].filter(Boolean).join(" · ") || "—"}
           </p>
           <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
-            {formatDate(order.createdAt)} at {formatTime(order.createdAt)} · {order.paymentMethod === "card" ? "Card" : "Cash on pickup"}
+            {formatDate(order.createdAt)} at {formatTime(order.createdAt)} ·{" "}
+            {isPhoneOrder
+              ? "Pay at pickup (not paid yet)"
+              : order.paymentMethod === "card"
+                ? "Card"
+                : "Cash on pickup"}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {isPhoneOrder && (
+            <span
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+              style={{ backgroundColor: "rgba(124,58,237,0.12)", color: PHONE_COLOR }}
+              title="AI Phone Assistant order — customer has not paid yet"
+            >
+              <Phone className="size-4 shrink-0" aria-hidden />
+              PHONE (AI)
+            </span>
+          )}
+          {isPhoneOrder && order.status !== "completed" && (
+            <span
+              className="px-2 py-1 rounded text-xs font-semibold"
+              style={{ backgroundColor: "rgba(220,38,38,0.15)", color: PENDING_COLOR }}
+              title="Customer pays at pickup — do not hand over until paid"
+            >
+              UNPAID
+            </span>
+          )}
           {order.cloverSyncStatus && (
             <span
               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
@@ -426,8 +465,9 @@ export default function AdminOrdersPage() {
     const newOrders = orders.filter((o) => newIds.includes(o.id));
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
+    const hasPhoneOrder = newPending.some((o) => o.source === "phone");
     stopAlarmRef.current?.();
-    stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
+    stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current, hasPhoneOrder ? "phone" : "web");
     // Alarm plays until user presses Spacebar to stop (see keydown listener below)
   }, [orders, useApi]);
 

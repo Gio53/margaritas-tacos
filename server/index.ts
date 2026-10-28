@@ -159,6 +159,8 @@ async function writeAvailability(entries: AvailabilityEntry[]): Promise<void> {
 interface StoredOrder {
   id: string;
   status: string;
+  /** "phone" = AI Phone Assistant order (admin-panel backup only; never synced to Clover or messaged). Absent = web order. */
+  source?: string;
   customer?: { firstName?: string; lastName?: string; email?: string; phone?: string };
   items?: Array<{
     categoryId?: string;
@@ -231,6 +233,134 @@ async function writeOrders(orders: StoredOrder[]) {
   await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
 }
 
+export interface PhoneOrderBody {
+  customer?: {
+    firstName?: unknown;
+    lastName?: unknown;
+    email?: unknown;
+    phone?: unknown;
+  };
+  items?: unknown[];
+  subtotal?: unknown;
+  tax?: unknown;
+  total?: unknown;
+  pickupAddress?: unknown;
+}
+
+/**
+ * Validate an AI Phone Assistant order body. Returns either { error } with a message
+ * the assistant can act on, or { order } ready to persist (not yet merged/persisted).
+ */
+function parsePhoneOrderBody(body: unknown): { error: string } | { order: StoredOrder } {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { error: "Request body must be a JSON object" };
+  }
+  const b = body as PhoneOrderBody;
+
+  const c = b.customer && typeof b.customer === "object" ? b.customer : {};
+  const firstName = typeof c.firstName === "string" ? c.firstName.trim() : "";
+  const phone = typeof c.phone === "string" ? c.phone.trim() : "";
+  if (!firstName) return { error: "customer.firstName is required (string)" };
+  if (!phone) return { error: "customer.phone is required (string)" };
+
+  if (!Array.isArray(b.items) || b.items.length < 1) {
+    return { error: "items is required (non-empty array)" };
+  }
+  if (b.items.length > 50) return { error: "items cannot exceed 50 lines" };
+
+  const items: StoredOrder["items"] = [];
+  for (let i = 0; i < b.items.length; i++) {
+    const raw = (b.items[i] ?? {}) as Record<string, unknown>;
+    const categoryName = typeof raw.categoryName === "string" ? raw.categoryName.trim() : "";
+    const itemName = typeof raw.itemName === "string" ? raw.itemName.trim() : "";
+    const quantity = typeof raw.quantity === "number" ? Math.round(raw.quantity) : NaN;
+    const lineTotal = typeof raw.lineTotal === "number" ? raw.lineTotal : NaN;
+    if (!categoryName) return { error: `items[${i}].categoryName is required (string)` };
+    if (!itemName) return { error: `items[${i}].itemName is required (string)` };
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+      return { error: `items[${i}].quantity must be an integer from 1 to 99` };
+    }
+    if (!Number.isFinite(lineTotal) || lineTotal < 0) {
+      return { error: `items[${i}].lineTotal must be a number >= 0 (dollars, e.g. 13.50)` };
+    }
+    const removeIngredients = Array.isArray(raw.removeIngredients)
+      ? raw.removeIngredients
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+          .map((v) => v.trim())
+      : [];
+    const addExtras = Array.isArray(raw.addExtras)
+      ? (raw.addExtras as Record<string, unknown>[])
+          .filter((x) => x && typeof x.name === "string" && x.name.trim().length > 0)
+          .map((x) => ({
+            name: (x.name as string).trim(),
+            ...(typeof x.quantity === "number" && Number.isFinite(x.quantity) && x.quantity > 1
+              ? { quantity: Math.round(x.quantity) }
+              : {}),
+            ...(typeof x.price === "number" && Number.isFinite(x.price) && x.price >= 0
+              ? { price: x.price }
+              : {}),
+          }))
+      : [];
+    const choices =
+      raw.choices && typeof raw.choices === "object" && !Array.isArray(raw.choices)
+        ? Object.fromEntries(
+            Object.entries(raw.choices as Record<string, unknown>)
+              .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
+              .map(([k, v]) => [k, (v as string).trim()])
+          )
+        : undefined;
+    items.push({
+      ...(typeof raw.categoryId === "string" && raw.categoryId.trim()
+        ? { categoryId: raw.categoryId.trim() }
+        : {}),
+      categoryName,
+      itemName,
+      quantity,
+      lineTotal,
+      removeIngredients,
+      addExtras,
+      ...(choices && Object.keys(choices).length > 0 ? { choices } : {}),
+    });
+  }
+
+  const subtotal = typeof b.subtotal === "number" && Number.isFinite(b.subtotal) ? b.subtotal : NaN;
+  const tax = typeof b.tax === "number" && Number.isFinite(b.tax) ? b.tax : NaN;
+  const total = typeof b.total === "number" && Number.isFinite(b.total) ? b.total : NaN;
+  if (!Number.isFinite(subtotal) || subtotal < 0) return { error: "subtotal must be a number >= 0 (dollars)" };
+  if (!Number.isFinite(tax) || tax < 0) return { error: "tax must be a number >= 0 (dollars)" };
+  if (!Number.isFinite(total) || total < 0) return { error: "total must be a number >= 0 (dollars)" };
+  if (Math.abs(subtotal + tax - total) > 0.02) {
+    return { error: `total must equal subtotal + tax (within $0.02): got subtotal ${subtotal} + tax ${tax} vs total ${total}` };
+  }
+
+  const pickupAddress =
+    typeof b.pickupAddress === "string" && b.pickupAddress.trim()
+      ? b.pickupAddress.trim()
+      : "Phone order — pickup in store";
+
+  return {
+    order: {
+      id: `order-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      source: "phone",
+      status: "pending",
+      customer: {
+        firstName,
+        lastName: typeof c.lastName === "string" ? c.lastName.trim() : "",
+        email: typeof c.email === "string" ? c.email.trim() : "",
+        phone,
+      },
+      items,
+      subtotal,
+      tax,
+      total,
+      pickupAddress,
+      /* Customer has NOT paid — they pay at pickup; no payment is ever recorded for phone orders. */
+      paymentMethod: "cash",
+      createdAt: Date.now(),
+    },
+  };
+}
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -241,7 +371,7 @@ async function startServer() {
   app.use((_req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-api-key");
     if (_req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });
@@ -273,12 +403,17 @@ async function startServer() {
   /**
    * Create a Clover v3 order with line items and trigger print on the merchant's default printer.
    * Uses API Token from Dashboard → API Tokens (Read/Write Orders). Prices in cents.
+   * Phone orders (AI assistant) are skipped entirely — the assistant sends its own ticket to Clover.
    */
   async function sendOrderToClover(order: StoredOrder): Promise<{
     cloverOrderId?: string;
-    cloverSyncStatus: "synced" | "failed";
+    cloverSyncStatus?: "synced" | "failed";
     cloverError?: string;
   }> {
+    if (order.source === "phone") {
+      console.log(`Skipping Clover sync for phone order ${order.id} (AI assistant prints its own ticket)`);
+      return {};
+    }
     if (!CLOVER_MERCHANT_ID || !CLOVER_API_TOKEN) {
       console.warn("Clover v3 not configured: set CLOVER_MERCHANT_ID and CLOVER_API_TOKEN");
       return { cloverSyncStatus: "failed", cloverError: "Clover v3 not configured" };
@@ -693,12 +828,48 @@ async function startServer() {
       }
 
       const cust = newOrder.customer as { phone?: string } | undefined;
-      sendOrderPlacedSms(cust?.phone).catch((e) => console.error("Order-placed SMS failed", e));
+      if (newOrder.source !== "phone") {
+        sendOrderPlacedSms(cust?.phone).catch((e) => console.error("Order-placed SMS failed", e));
+      }
 
       res.status(201).json(updatedOrder);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Failed to save order" });
+    }
+  });
+
+  /**
+   * AI Phone Assistant order intake — RECORD ONLY.
+   * The assistant sends its own ticket to the Clover printer; this endpoint only saves the
+   * order so it appears in the admin panel (phone/unpaid badges + alarm) as a backup in case
+   * the ticket never printed. No Clover call, no printing, no customer SMS/email.
+   * Auth: x-api-key header must match the PHONE_ORDER_API_KEY env var.
+   */
+  app.post("/api/orders/phone", async (req, res) => {
+    const expectedKey = (process.env.PHONE_ORDER_API_KEY ?? "").trim();
+    if (!expectedKey) {
+      return res
+        .status(503)
+        .json({ error: "Phone orders are not configured: set PHONE_ORDER_API_KEY on the server" });
+    }
+    const providedKey = String(req.header("x-api-key") ?? "");
+    if (providedKey !== expectedKey) {
+      return res.status(401).json({ error: "Invalid or missing x-api-key header" });
+    }
+    try {
+      const parsed = parsePhoneOrderBody(req.body);
+      if ("error" in parsed) return res.status(400).json({ error: parsed.error });
+      const newOrder = parsed.order;
+      newOrder.items = mergeIdenticalOrderLines(newOrder.items ?? []);
+      const orders = await readOrders();
+      orders.unshift(newOrder);
+      await writeOrders(orders);
+      console.log(`Phone order (AI assistant) saved: ${newOrder.id} — $${(newOrder.total ?? 0).toFixed(2)}`);
+      res.status(201).json(newOrder);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to save phone order" });
     }
   });
 
@@ -858,6 +1029,8 @@ async function startServer() {
       for (let i = 0; i < orders.length; i++) {
         const order = orders[i];
         if (order.status !== "pending") continue;
+        /* Phone orders: staff mark them ready manually — the AI assistant owns customer comms. */
+        if (order.source === "phone") continue;
         const createdAt = typeof order.createdAt === "number" ? order.createdAt : 0;
         if (!createdAt || createdAt > cutoff) continue;
         orders[i] = { ...order, status: "ready" };
@@ -890,8 +1063,8 @@ async function startServer() {
       const previousStatus = order.status;
       orders[index] = { ...order, status };
       await writeOrders(orders);
-      // Only notify when transitioning into ready (manual or otherwise)
-      if (status === "ready" && previousStatus !== "ready") {
+      // Only notify when transitioning into ready (manual or otherwise); never for phone orders
+      if (status === "ready" && previousStatus !== "ready" && order.source !== "phone") {
         notifyOrderReady(order.customer);
       }
       res.json(orders[index]);

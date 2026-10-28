@@ -32,6 +32,8 @@ export interface PlacedOrder {
   total: number;
   pickupAddress: string;
   paymentMethod: "card" | "cash";
+  /** "phone" = AI Phone Assistant order (unpaid; backup record only). Absent = web order. */
+  source?: "web" | "phone";
   createdAt: number;
   /** Set when order is synced to Clover via API v3 */
   cloverOrderId?: string;

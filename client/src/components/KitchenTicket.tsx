@@ -122,7 +122,12 @@ function formatCustomerLine(order: PlacedOrder): string {
   const initial = last ? `${last.charAt(0).toUpperCase()}.` : "";
   const phone = order.customer.phone?.trim() ?? "";
   const namePart = `${first} ${initial}`.trim();
-  return `${namePart}(${phone}) - MARGARITAS ONLINE - PICKUP -`;
+  const channel = order.source === "phone" ? "PHONE ORDER (AI)" : "MARGARITAS ONLINE";
+  return `${namePart}(${phone}) - ${channel} - PICKUP -`;
+}
+
+function isPhoneOrder(order: PlacedOrder): boolean {
+  return order.source === "phone";
 }
 
 function itemBlockHtml(line: OrderItem): string {
@@ -159,6 +164,7 @@ body{font-family:Consolas,'Courier New',monospace;padding:4px 6px;width:72mm;max
 .kt-name{font-weight:700;flex:1;min-width:0}
 .kt-mod{padding-left:1.6em;font-size:11px;line-height:1.25;margin-top:1px}
 .kt-server{font-weight:700;margin:2px 0 6px}
+.kt-phone-alert{font-weight:700;text-align:center;margin:3px 0;letter-spacing:0.02em}
 .kt-footer{font-size:11px;margin-top:4px}
 `;
 
@@ -172,6 +178,7 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
   const sent = formatTicketTime(order.createdAt);
   const customer = formatCustomerLine(order);
   const footerId = order.cloverOrderId?.trim() || order.id;
+  const phone = isPhoneOrder(order);
 
   const itemsHtml = mergeIdenticalOrderLines(order.items)
     .map((line) => itemBlockHtml(line as OrderItem))
@@ -181,6 +188,7 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
 <style>${ticketStyles}</style>
 </head><body>
 <p class="kt-order-head">ORDER: ${escapeHtml(oid)} (${escapeHtml(pickup)})</p>
+${phone ? '<p class="kt-phone-alert">** PHONE ORDER — NOT PAID **</p>' : ""}
 <p class="kt-line">Margaritas-Online</p>
 <p class="kt-line">${escapeHtml(placed)}</p>
 <p class="kt-line">Printed: ${escapeHtml(printed)}</p>
@@ -188,7 +196,7 @@ export function getTicketPrintHtml(order: PlacedOrder): string {
 <p class="kt-line">${escapeHtml(customer)}</p>
 <p class="kt-line">Ready by 20 minutes -</p>
 <div class="kt-dash">----------</div>
-<p class="kt-server">Server: WEB ORDER</p>
+<p class="kt-server">Server: ${phone ? "PHONE (AI)" : "WEB ORDER"}</p>
 <div class="kt-items">${itemsHtml}</div>
 <p class="kt-footer">Order ID: ${escapeHtml(footerId)}</p>
 </body></html>`;
@@ -224,6 +232,7 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
   const placed = formatTicketDateTime(order.createdAt);
   const customer = formatCustomerLine(order);
   const footerId = order.cloverOrderId?.trim() || order.id;
+  const phone = isPhoneOrder(order);
 
   return (
     <>
@@ -231,6 +240,9 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
         <p className="font-bold text-[13px] leading-tight mb-0.5">
           ORDER: {oid} ({order.pickupAddress})
         </p>
+        {phone && (
+          <p className="font-bold text-center my-0.5 tracking-wide">** PHONE ORDER — NOT PAID **</p>
+        )}
         <p>Margaritas-Online</p>
         <p>{placed}</p>
         <p>Printed: {formatTicketTime(Date.now())}</p>
@@ -240,7 +252,7 @@ export default function KitchenTicket({ order }: { order: PlacedOrder }) {
         <p className="tracking-tight my-1.5 overflow-hidden leading-none">
           ----------
         </p>
-        <p className="font-bold mb-1.5">Server: WEB ORDER</p>
+        <p className="font-bold mb-1.5">Server: {phone ? "PHONE (AI)" : "WEB ORDER"}</p>
         <div>
           {mergeIdenticalOrderLines(order.items).map((line, idx) => (
             <TicketItem key={idx} line={line as OrderItem} />

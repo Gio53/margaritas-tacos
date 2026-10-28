@@ -154,7 +154,7 @@ export default function TestOrder() {
   const tax = 0;
   const total = subtotal + tax;
 
-  const handleAddTestOrder = async () => {
+  const handleAddTestOrder = async (source: "web" | "phone" = "web") => {
     if (lines.length === 0) {
       toast.error("Add at least one item to the test order.");
       return;
@@ -183,9 +183,12 @@ export default function TestOrder() {
         total,
         pickupAddress: pickupAddress.trim() || DEFAULT_PICKUP,
         paymentMethod: "cash",
+        source,
       });
       toast.success(
-        "Test order added. Check Order Management — alarm will play; press Spacebar to silence. Receipt should print on Clover."
+        source === "phone"
+          ? "Test PHONE order added (no Clover print, no SMS). Check Order Management — phone alarm will play; press Spacebar to silence."
+          : "Test order added. Check Order Management — alarm will play; press Spacebar to silence. Receipt should print on Clover."
       );
     } catch (e) {
       toast.error("Failed to add test order");
@@ -527,12 +530,22 @@ export default function TestOrder() {
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              onClick={handleAddTestOrder}
+              onClick={() => handleAddTestOrder("web")}
               disabled={adding || lines.length === 0}
               className="w-full py-3 rounded-lg font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: GOLD }}
             >
               {adding ? "Adding…" : "Add test order"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddTestOrder("phone")}
+              disabled={adding || lines.length === 0}
+              className="w-full py-3 rounded-lg font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#7C3AED" }}
+              title="Simulates an AI Phone Assistant order: shows in Order Management with PHONE (AI) + UNPAID badges and the phone alarm — no Clover print, no SMS"
+            >
+              {adding ? "Adding…" : "Add test PHONE order (AI assistant, no print)"}
             </button>
             <button
               type="button"
