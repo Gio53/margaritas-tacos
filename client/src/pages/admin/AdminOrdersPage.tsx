@@ -256,6 +256,11 @@ function OrderCard({
                 )}
               </p>
             )}
+            {line.notes && (
+              <p className="text-xs mt-0.5 italic" style={{ color: "#6B7280" }}>
+                Note: {line.notes}
+              </p>
+            )}
             <p className="text-xs font-semibold mt-0.5" style={{ color: GOLD }}>
               ${(line.lineTotal ?? 0).toFixed(2)}
             </p>

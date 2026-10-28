@@ -20,6 +20,8 @@ export interface OrderItem {
   addExtras: OrderExtra[];
   lineTotal: number;
   choices?: Record<string, string>;
+  /** Free-text special instructions (phone orders from the AI assistant). */
+  notes?: string;
 }
 
 export interface PlacedOrder {

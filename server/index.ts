@@ -309,6 +309,7 @@ function parsePhoneOrderBody(body: unknown): { error: string } | { order: Stored
               .map(([k, v]) => [k, (v as string).trim()])
           )
         : undefined;
+    const notes = typeof raw.notes === "string" && raw.notes.trim() ? raw.notes.trim().slice(0, 200) : undefined;
     items.push({
       ...(typeof raw.categoryId === "string" && raw.categoryId.trim()
         ? { categoryId: raw.categoryId.trim() }
@@ -320,6 +321,7 @@ function parsePhoneOrderBody(body: unknown): { error: string } | { order: Stored
       removeIngredients,
       addExtras,
       ...(choices && Object.keys(choices).length > 0 ? { choices } : {}),
+      ...(notes ? { notes } : {}),
     });
   }
 

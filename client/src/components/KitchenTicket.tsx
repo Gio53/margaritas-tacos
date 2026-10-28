@@ -113,6 +113,11 @@ export function formatTicketModifiers(line: OrderItem): string[] {
     mods.push(`Remove ${ing}`);
   }
 
+  const notes = line.notes?.trim();
+  if (notes) {
+    mods.push(notes);
+  }
+
   return mods;
 }
 

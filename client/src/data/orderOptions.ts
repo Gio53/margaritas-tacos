@@ -4,19 +4,21 @@
 
 export interface OrderExtra {
   name: string;
-  price: number;
+  /** Price per side in dollars; omitted on phone-order free-text extras. */
+  price?: number;
   /** Number of sides (default 1). */
   quantity?: number;
 }
 
 const SIDE_CUP_LABEL = "4oz cup";
 
-/** Format add extra for display: always show quantity, e.g. "Side of Guacamole (4oz cup) ×1 (+$3.00)" or "×2 (+$6.00)" */
+/** Format add extra for display: always show quantity, e.g. "Side of Guacamole (4oz cup) ×1 (+$3.00)" or "×2 (+$6.00)". Price is omitted when unknown (e.g. phone-order free-text extras). */
 export function formatAddExtra(e: OrderExtra): string {
   const qty = e.quantity ?? 1;
-  const total = e.price * qty;
   const qtyLabel = ` ×${qty}`;
-  return `Side of ${e.name} (${SIDE_CUP_LABEL})${qtyLabel} (+$${total.toFixed(2)})`;
+  const cupLabel = e.price == null ? "" : ` (${SIDE_CUP_LABEL})`;
+  const priceLabel = e.price == null ? "" : ` (+$${(e.price * qty).toFixed(2)})`;
+  return `Side of ${e.name}${cupLabel}${qtyLabel}${priceLabel}`;
 }
 
 export { SIDE_CUP_LABEL };
