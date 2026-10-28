@@ -22,8 +22,8 @@ const TOTAL_COLOR = "#EA580C";
 const PHONE_COLOR = "#7C3AED";
 
 /**
- * Start a repeating alarm-clock style sound. kind "phone" (AI Phone Assistant) plays a
- * faster, higher-pitched triple-beep so staff can tell it apart from a web order.
+ * Start a repeating alarm-clock style sound. kind "phone" (AI Phone Assistant)
+ * sounds like an actual phone ringing (two-tone 440+480 Hz ring cadence).
  * Returns a function to stop it. Uses a context resumed after user gesture.
  */
 function startNewOrderAlarm(
@@ -36,9 +36,13 @@ function startNewOrderAlarm(
     const audioContext = ctx && ctx.state !== "closed"
       ? ctx
       : new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    // A freshly created context starts "suspended" (browser autoplay policy)
+    // and would be silent — resume it. Allowed because the user has gestured
+    // (e.g. pressed Enter to log in) at some point in the session.
+    if (audioContext.state === "suspended") void audioContext.resume();
     gainNode = audioContext.createGain();
     gainNode.connect(audioContext.destination);
-    gainNode.gain.value = 0.25;
+    gainNode.gain.value = kind === "phone" ? 0.12 : 0.25;
 
     const playBeep = (freq: number, start: number, duration: number) => {
       const osc = audioContext.createOscillator();
@@ -49,12 +53,22 @@ function startNewOrderAlarm(
       osc.stop(start + duration);
     };
 
+    /** Classic phone ring: 440+480 Hz mixed sine, two bursts per cycle. */
+    const playRingBurst = (start: number) => {
+      for (const freq of [440, 480]) {
+        const osc = audioContext.createOscillator();
+        osc.connect(gainNode!);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        osc.start(start);
+        osc.stop(start + 0.75);
+      }
+    };
     const playPattern = () => {
       const now = audioContext.currentTime;
       if (kind === "phone") {
-        playBeep(1245, now, 0.09);
-        playBeep(1245, now + 0.13, 0.09);
-        playBeep(1245, now + 0.26, 0.09);
+        playRingBurst(now);
+        playRingBurst(now + 1.15);
       } else {
         playBeep(880, now, 0.12);
         playBeep(880, now + 0.2, 0.12);
@@ -62,7 +76,7 @@ function startNewOrderAlarm(
     };
 
     playPattern();
-    intervalId = setInterval(playPattern, kind === "phone" ? 800 : 1000);
+    intervalId = setInterval(playPattern, kind === "phone" ? 3500 : 1000);
   } catch {
     // ignore
   }
