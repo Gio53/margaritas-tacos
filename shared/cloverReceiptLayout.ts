@@ -36,6 +36,9 @@ export function orderItemChoicesNote(
     const s = choices.sauce;
     return s ? `Sauce: ${s}` : "";
   }
+  if (categoryId === "specials") {
+    return choices.protein?.trim() ?? "";
+  }
   return Object.entries(choices)
     .map(([k, v]) => `${k}: ${v}`)
     .join("; ");

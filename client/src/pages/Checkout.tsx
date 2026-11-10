@@ -264,8 +264,8 @@ export default function Checkout() {
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
                       {formatQuantityLabel(line.categoryId, line.quantity)}
-                      {formatChoicesLine(line.categoryId, line.choices) &&
-                        ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
+                      {formatChoicesLine(line.categoryId, line.choices, line.itemName) &&
+                        ` • ${formatChoicesLine(line.categoryId, line.choices, line.itemName)}`}
                       {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                       {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                     </p>
@@ -457,8 +457,8 @@ export default function Checkout() {
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "rgba(255,248,240,0.7)" }}>
                   {formatQuantityLabel(line.categoryId, line.quantity)}
-                  {formatChoicesLine(line.categoryId, line.choices) &&
-                    ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
+                  {formatChoicesLine(line.categoryId, line.choices, line.itemName) &&
+                    ` • ${formatChoicesLine(line.categoryId, line.choices, line.itemName)}`}
                   {line.removeIngredients.length > 0 && ` • X Remove: ${line.removeIngredients.join(", ")}`}
                   {line.addExtras.length > 0 && ` • Add: ${line.addExtras.map(formatAddExtra).join(", ")}`}
                 </p>

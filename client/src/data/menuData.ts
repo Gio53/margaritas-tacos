@@ -16,10 +16,36 @@ export interface MenuCategory {
   badgeColor: string;
   description: string;
   specialNote?: string;
+  /** Item cards lead with the dish name instead of the category name (e.g. Specials). */
+  leadWithItemName?: boolean;
   items: MenuItem[];
 }
 
 export const menuCategories: MenuCategory[] = [
+  {
+    id: "specials",
+    name: "Specials",
+    badgeColor: "badge-red",
+    description: "Chef's specials — hearty plates served with rice & beans and all the fixings",
+    leadWithItemName: true,
+    items: [
+      {
+        name: "Carne Asada",
+        price: 20,
+        note: "Grilled jalapenos, grilled onions, rice & beans, pico de gallo, guacamole, 3 corn tortillas on the side",
+      },
+      {
+        name: "Fajitas",
+        price: 20,
+        note: "Rice & beans, grilled onions & peppers, side of guacamole, pico de gallo, sour cream, 3 flour tortillas",
+      },
+      {
+        name: "Margarita's Parrillada",
+        price: 32,
+        note: "Chicken, steak, chorizo, shrimp, grilled jalapenos & onions, fried cheese, rice & beans on the side",
+      },
+    ],
+  },
   {
     id: "mexican-street-tacos",
     name: "3 Mexican Street Tacos",

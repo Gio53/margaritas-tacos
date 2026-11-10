@@ -66,6 +66,7 @@ export function formatTicketItemName(line: OrderItem): string {
   if (/^nachos$/i.test(cat)) return `Nachos (${item})`;
   if (/^torta$/i.test(cat)) return `Torta (${item})`;
   if (/^enchiladas$/i.test(cat)) return `${item} Enchiladas`;
+  if (/^specials$/i.test(cat)) return item;
   if (/burrito/i.test(cat)) return `${item} ${cat}`;
 
   return `${item} ${cat}`.replace(/\s+/g, " ").trim();
@@ -81,7 +82,7 @@ export function formatTicketModifiers(line: OrderItem): string[] {
 
   if (line.choices && Object.keys(line.choices).length > 0) {
     const required = line.categoryId
-      ? getRequiredChoicesForCategory(line.categoryId)
+      ? getRequiredChoicesForCategory(line.categoryId, line.itemName)
       : [];
     if (required.length > 0) {
       for (const rc of required) {

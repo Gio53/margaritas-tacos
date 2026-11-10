@@ -13,6 +13,7 @@ import type { MenuItem } from "@/data/menuData";
 import {
   getOrderOptionsForCategory,
   getRequiredChoicesForCategory,
+  getOptionPriceDelta,
   formatChoicesLine,
 } from "@/data/orderOptions";
 import type { OrderExtra } from "@/data/orderOptions";
@@ -65,11 +66,22 @@ export default function TestOrder() {
     () => menuCategories.find((c) => c.id === addCategoryId) ?? null,
     [addCategoryId]
   );
-  const options = getOrderOptionsForCategory(addCategoryId);
+  const options = getOrderOptionsForCategory(addCategoryId, addItem?.name);
   const requiredForAdd = useMemo(
-    () => getRequiredChoicesForCategory(addCategoryId),
-    [addCategoryId]
+    () => getRequiredChoicesForCategory(addCategoryId, addItem?.name),
+    [addCategoryId, addItem?.name]
   );
+  /** Base price including required-pick deltas (e.g. Fajitas Mixed +$2). */
+  const addBasePrice = useMemo(() => {
+    if (!addItem) return 0;
+    return (
+      addItem.price +
+      requiredForAdd.reduce(
+        (sum, rc) => sum + getOptionPriceDelta(rc, addChoiceValues[rc.id] ?? ""),
+        0
+      )
+    );
+  }, [addItem, requiredForAdd, addChoiceValues]);
 
   const toggleRemove = (name: string) => {
     setAddRemove((prev) =>
@@ -90,8 +102,8 @@ export default function TestOrder() {
 
   const lineTotalForAdd = useMemo(() => {
     if (!addItem || !addCategoryId) return 0;
-    return computeLineTotal(addItem.price, addQty, addExtras, addCategoryId);
-  }, [addItem, addCategoryId, addQty, addExtras]);
+    return computeLineTotal(addBasePrice, addQty, addExtras, addCategoryId);
+  }, [addItem, addCategoryId, addBasePrice, addQty, addExtras]);
 
   const addLine = () => {
     if (!selectedCategory || !addItem) return;
@@ -110,7 +122,7 @@ export default function TestOrder() {
       return;
     }
     const lineTotal = computeLineTotal(
-      addItem.price,
+      addBasePrice,
       addQty,
       addExtras,
       addCategoryId
@@ -128,7 +140,7 @@ export default function TestOrder() {
         categoryId: addCategoryId,
         categoryName: selectedCategory.name,
         itemName: addItem.name,
-        basePrice: addItem.price,
+        basePrice: addBasePrice,
         quantity: addQty,
         removeIngredients: [...addRemove],
         addExtras: addExtras.map((e) => ({ ...e, quantity: e.quantity ?? 1 })),
@@ -393,22 +405,28 @@ export default function TestOrder() {
                       {rc.prompt}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {rc.options.map((opt) => (
-                        <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`test-${rc.id}`}
-                            checked={addChoiceValues[rc.id] === opt}
-                            onChange={() =>
-                              setAddChoiceValues((prev) => ({
-                                ...prev,
-                                [rc.id]: opt,
-                              }))
-                            }
-                          />
-                          <span>{opt}</span>
-                        </label>
-                      ))}
+                      {rc.options.map((opt) => {
+                        const optDelta = getOptionPriceDelta(rc, opt);
+                        return (
+                          <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`test-${rc.id}`}
+                              checked={addChoiceValues[rc.id] === opt}
+                              onChange={() =>
+                                setAddChoiceValues((prev) => ({
+                                  ...prev,
+                                  [rc.id]: opt,
+                                }))
+                              }
+                            />
+                            <span>
+                              {opt}
+                              {optDelta > 0 && ` (+$${optDelta.toFixed(2)})`}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -490,9 +508,9 @@ export default function TestOrder() {
                       <span className="font-medium">
                         {line.categoryName} — {line.itemName} {formatQuantityLabel(line.categoryId, line.quantity)}
                       </span>
-                      {formatChoicesLine(line.categoryId, line.choices) && (
+                      {formatChoicesLine(line.categoryId, line.choices, line.itemName) && (
                         <p className="text-xs text-gray-600 mt-0.5">
-                          {formatChoicesLine(line.categoryId, line.choices)}
+                          {formatChoicesLine(line.categoryId, line.choices, line.itemName)}
                         </p>
                       )}
                       {(line.removeIngredients.length > 0 || line.addExtras.length > 0) && (

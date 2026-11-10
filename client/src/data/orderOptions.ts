@@ -31,6 +31,13 @@ export interface RequiredChoice {
   /** Heading in the customize modal */
   prompt: string;
   options: string[];
+  /** Optional price delta per option over the base price, e.g. { Mixed: 2 } for +$2. */
+  optionPriceDelta?: Record<string, number>;
+}
+
+/** Price delta for one option of a required pick (0 when unpriced). */
+export function getOptionPriceDelta(rc: RequiredChoice, option: string): number {
+  return rc.optionPriceDelta?.[option] ?? 0;
 }
 
 export interface CategoryOrderOptions {
@@ -40,15 +47,34 @@ export interface CategoryOrderOptions {
   requiredChoice?: RequiredChoice;
   /** Multiple required picks (e.g. sauce + tortilla). Overrides using only `requiredChoice` when both set — prefer one or the other. */
   requiredChoices?: RequiredChoice[];
+  /** Per-item overrides for categories whose items differ (e.g. Specials). */
+  itemOverrides?: Record<string, Partial<Omit<CategoryOrderOptions, "itemOverrides">>>;
 }
 
-/** All required picks for a category (from `requiredChoices` or single `requiredChoice`). */
-export function getRequiredChoicesForCategory(categoryId: string): RequiredChoice[] {
-  const o = categoryOrderOptions[categoryId];
-  if (!o) return [];
+/** All required picks for an item's category (item overrides win). */
+export function getRequiredChoicesForCategory(
+  categoryId: string,
+  itemName?: string
+): RequiredChoice[] {
+  const o = getOrderOptionsForCategory(categoryId, itemName);
   if (o.requiredChoices?.length) return o.requiredChoices;
   if (o.requiredChoice) return [o.requiredChoice];
   return [];
+}
+
+/** Sum of price deltas from selected required picks (e.g. Fajitas "Mixed" = +$2). */
+export function getChoicesPriceDelta(
+  categoryId: string | undefined,
+  itemName: string | undefined,
+  choices: Record<string, string> | undefined
+): number {
+  if (!categoryId || !choices) return 0;
+  let delta = 0;
+  for (const rc of getRequiredChoicesForCategory(categoryId, itemName)) {
+    const v = choices[rc.id];
+    if (v) delta += getOptionPriceDelta(rc, v);
+  }
+  return delta;
 }
 
 const EXTRAS_2 = [
@@ -147,24 +173,56 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
       },
     ],
   },
+  specials: {
+    removeIngredients: [],
+    addExtras: [],
+    itemOverrides: {
+      "Carne Asada": {
+        removeIngredients: ["Grilled Jalapenos", "Grilled Onions"],
+      },
+      Fajitas: {
+        removeIngredients: ["Grilled Peppers", "Grilled Onions"],
+        requiredChoice: {
+          id: "protein",
+          label: "Protein",
+          prompt: "Choose protein (required)",
+          options: ["Chicken", "Steak", "Shrimp", "Mixed"],
+          optionPriceDelta: { Mixed: 2 },
+        },
+      },
+    },
+  },
 };
 
-export function getOrderOptionsForCategory(categoryId: string): CategoryOrderOptions {
-  return (
-    categoryOrderOptions[categoryId] ?? {
-      removeIngredients: [],
-      addExtras: EXTRAS_2,
-    }
-  );
+/** Per-category customization options for the order modal (item override applied when given). */
+export function getOrderOptionsForCategory(
+  categoryId: string,
+  itemName?: string
+): CategoryOrderOptions {
+  const base = categoryOrderOptions[categoryId] ?? {
+    removeIngredients: [],
+    addExtras: EXTRAS_2,
+  };
+  const override = itemName ? base.itemOverrides?.[itemName] : undefined;
+  if (!override) return base;
+  return {
+    removeIngredients: override.removeIngredients ?? base.removeIngredients,
+    addExtras: override.addExtras ?? base.addExtras,
+    requiredChoice: override.requiredChoice ?? base.requiredChoice,
+    requiredChoices: override.requiredChoices ?? base.requiredChoices,
+  };
 }
 
 /** Line item note for cart / tickets (e.g. "Hard shell · Sauce: Red sauce"). */
 export function formatChoicesLine(
   categoryId: string | undefined,
-  choices: Record<string, string> | undefined
+  choices: Record<string, string> | undefined,
+  itemName?: string
 ): string {
   if (!choices || Object.keys(choices).length === 0) return "";
-  const list = categoryId ? getRequiredChoicesForCategory(categoryId) : [];
+  const list = categoryId
+    ? getRequiredChoicesForCategory(categoryId, itemName)
+    : [];
   if (list.length > 0) {
     const parts = list
       .map((rc) => {

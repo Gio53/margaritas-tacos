@@ -228,14 +228,14 @@ function OrderCard({
                 line.categoryName
               )}
             </p>
-            {(formatChoicesLine(line.categoryId, line.choices) ||
+            {(formatChoicesLine(line.categoryId, line.choices, line.itemName) ||
               (line.removeIngredients?.length ?? 0) > 0 ||
               (line.addExtras?.length ?? 0) > 0) && (
               <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
-                {formatChoicesLine(line.categoryId, line.choices) && (
-                  <>{formatChoicesLine(line.categoryId, line.choices)}</>
+                {formatChoicesLine(line.categoryId, line.choices, line.itemName) && (
+                  <>{formatChoicesLine(line.categoryId, line.choices, line.itemName)}</>
                 )}
-                {formatChoicesLine(line.categoryId, line.choices) &&
+                {formatChoicesLine(line.categoryId, line.choices, line.itemName) &&
                   ((line.removeIngredients?.length ?? 0) > 0 || (line.addExtras?.length ?? 0) > 0) &&
                   " · "}
                 {(line.removeIngredients?.length ?? 0) > 0 && (

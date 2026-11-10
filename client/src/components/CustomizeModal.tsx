@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   getOrderOptionsForCategory,
   getRequiredChoicesForCategory,
+  getOptionPriceDelta,
   SIDE_CUP_LABEL,
 } from "@/data/orderOptions";
 import { Label } from "@/components/ui/label";
@@ -56,16 +57,26 @@ export function CustomizeModal({
   const [requireExpanded, setRequireExpanded] = useState(true);
   const prevAllFilledRef = useRef(false);
 
-  const options = getOrderOptionsForCategory(categoryId);
+  const options = getOrderOptionsForCategory(categoryId, item.name);
   const requiredList = useMemo(
-    () => getRequiredChoicesForCategory(categoryId),
-    [categoryId]
+    () => getRequiredChoicesForCategory(categoryId, item.name),
+    [categoryId, item.name]
   );
   const hasRemove = options.removeIngredients.length > 0;
   const hasExtras = options.addExtras.length > 0;
   const allRequiredFilled =
     requiredList.length === 0 ||
     requiredList.every((rc) => Boolean(choiceValues[rc.id]?.trim()));
+  /** Base price including required-pick deltas (e.g. Fajitas Mixed +$2). */
+  const basePrice = useMemo(
+    () =>
+      item.price +
+      requiredList.reduce(
+        (sum, rc) => sum + getOptionPriceDelta(rc, choiceValues[rc.id] ?? ""),
+        0
+      ),
+    [item.price, requiredList, choiceValues]
+  );
 
   const choiceSummary = useMemo(() => {
     if (requiredList.length === 0) return "";
@@ -127,7 +138,7 @@ export function CustomizeModal({
     () => addExtras.reduce((s, e) => s + e.price * (e.quantity ?? 1), 0),
     [addExtras]
   );
-  const lineTotal = computeLineTotal(item.price, quantity, addExtras, categoryId);
+  const lineTotal = computeLineTotal(basePrice, quantity, addExtras, categoryId);
 
   const handleAddToCart = () => {
     if (!allRequiredFilled) {
@@ -150,7 +161,7 @@ export function CustomizeModal({
       categoryId,
       categoryName,
       itemName: item.name,
-      basePrice: item.price,
+      basePrice,
       quantity,
       removeIngredients: [...removeIngredients],
       addExtras: extrasWithQty,
@@ -197,11 +208,17 @@ export function CustomizeModal({
         style={{ backgroundColor: ESPRESSO }}
       >
         <DialogHeader className="p-4 pb-2 text-left shrink-0">
+          <p
+            className="text-xs font-semibold uppercase tracking-wider mb-0.5"
+            style={{ color: MUTED }}
+          >
+            {categoryName}
+          </p>
           <DialogTitle
             className="text-xl font-bold text-white"
             style={{ fontFamily: "'Oswald', sans-serif" }}
           >
-            {categoryName}
+            {item.name}
           </DialogTitle>
         </DialogHeader>
 
@@ -275,28 +292,34 @@ export function CustomizeModal({
                         }
                         className="space-y-1"
                       >
-                        {rc.options.map((opt) => (
-                          <div
-                            key={opt}
-                            className="flex items-center gap-2 rounded-md border px-2.5 py-1.5"
-                            style={{
-                              borderColor: "rgba(255,248,240,0.2)",
-                              backgroundColor: "rgba(255,255,255,0.05)",
-                            }}
-                          >
-                            <RadioGroupItem
-                              value={opt}
-                              id={`${rc.id}-${opt}`}
-                              className="border-[rgba(255,248,240,0.5)] text-[#E8A838] shrink-0"
-                            />
-                            <Label
-                              htmlFor={`${rc.id}-${opt}`}
-                              className="cursor-pointer flex-1 text-[#FFF8F0] text-sm leading-snug"
+                        {rc.options.map((opt) => {
+                          const optDelta = getOptionPriceDelta(rc, opt);
+                          return (
+                            <div
+                              key={opt}
+                              className="flex items-center gap-2 rounded-md border px-2.5 py-1.5"
+                              style={{
+                                borderColor: "rgba(255,248,240,0.2)",
+                                backgroundColor: "rgba(255,255,255,0.05)",
+                              }}
                             >
-                              {opt}
-                            </Label>
-                          </div>
-                        ))}
+                              <RadioGroupItem
+                                value={opt}
+                                id={`${rc.id}-${opt}`}
+                                className="border-[rgba(255,248,240,0.5)] text-[#E8A838] shrink-0"
+                              />
+                              <Label
+                                htmlFor={`${rc.id}-${opt}`}
+                                className="cursor-pointer flex-1 text-[#FFF8F0] text-sm leading-snug"
+                              >
+                                {opt}
+                                {optDelta > 0 && (
+                                  <span style={{ color: GOLD }}> (+${optDelta.toFixed(2)})</span>
+                                )}
+                              </Label>
+                            </div>
+                          );
+                        })}
                       </RadioGroup>
                     </div>
                   ))}
@@ -435,7 +458,7 @@ export function CustomizeModal({
           >
             <div className="flex justify-between text-sm" style={{ color: MUTED }}>
               <span>Base Price</span>
-              <span>${item.price.toFixed(2)}</span>
+              <span>${basePrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-semibold" style={{ color: CREAM }}>
               <span>{quantity} x Total</span>

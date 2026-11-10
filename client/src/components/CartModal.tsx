@@ -95,8 +95,8 @@ export function CartModal({
                     style={{ color: "rgba(44,24,16,0.75)" }}
                   >
                     {line.itemName}
-                    {formatChoicesLine(line.categoryId, line.choices) &&
-                      ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
+                    {formatChoicesLine(line.categoryId, line.choices, line.itemName) &&
+                      ` • ${formatChoicesLine(line.categoryId, line.choices, line.itemName)}`}
                     {line.removeIngredients.length > 0 &&
                       ` • No: ${line.removeIngredients.join(", ")}`}
                     {line.addExtras.length > 0 &&

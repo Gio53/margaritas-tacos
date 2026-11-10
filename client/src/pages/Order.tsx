@@ -197,6 +197,7 @@ export default function OrderPage() {
                 const unavailable = isItemUnavailable(category!.id, item.name);
                 const until = unavailableUntil(category!.id, item.name);
                 const blocked = orderingClosed || unavailable;
+                const leadWithItemName = category?.leadWithItemName ?? false;
                 return (
                   <button
                     key={item.name}
@@ -240,10 +241,10 @@ export default function OrderPage() {
                           className="font-bold text-black"
                           style={{ fontFamily: "'Oswald', sans-serif" }}
                         >
-                          {category?.name}
+                          {leadWithItemName ? item.name : category?.name}
                         </p>
                         <p className="text-sm mt-0.5" style={{ color: MUTED }}>
-                          {item.name}
+                          {leadWithItemName ? category?.name : item.name}
                         </p>
                         {orderingClosed && (
                           <p className="text-xs mt-1 font-semibold text-amber-900">

@@ -90,8 +90,8 @@ export function CartPanel({
                   style={{ color: "rgba(255,248,240,0.8)" }}
                 >
                   {line.itemName}
-                  {formatChoicesLine(line.categoryId, line.choices) &&
-                    ` • ${formatChoicesLine(line.categoryId, line.choices)}`}
+                  {formatChoicesLine(line.categoryId, line.choices, line.itemName) &&
+                    ` • ${formatChoicesLine(line.categoryId, line.choices, line.itemName)}`}
                   {line.removeIngredients.length > 0 &&
                     ` • No: ${line.removeIngredients.join(", ")}`}
                   {line.addExtras.length > 0 &&
