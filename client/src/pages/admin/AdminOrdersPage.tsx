@@ -8,7 +8,7 @@ import type { OrderStatus, PlacedOrder } from "@/contexts/OrdersContext";
 import { formatAddExtra, formatChoicesLine } from "@/data/orderOptions";
 import { formatQuantityLabel } from "@/lib/utils";
 import { mergeIdenticalOrderLines } from "@shared/orderLineHelpers";
-import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2, Phone, Volume2 } from "lucide-react";
+import { Printer, RefreshCw, ExternalLink, FlaskConical, CheckCircle, XCircle, Loader2, Phone, Volume2, Bell } from "lucide-react";
 import { toast } from "sonner";
 import KitchenTicket, { getTicketPrintHtml } from "@/components/KitchenTicket";
 import { ESPRESSO, GOLD, API_BASE } from "./adminTheme";
@@ -405,6 +405,8 @@ export default function AdminOrdersPage() {
   const audioContextRef = useRef<AudioContext | null>(null);
   /** Stop function for the repeating new-order alarm; cleared when Print ticket is pressed */
   const stopAlarmRef = useRef<(() => void) | null>(null);
+  /** Drives the on-screen alarm indicator; set when the alarm starts, cleared when silenced */
+  const [alarmActive, setAlarmActive] = useState(false);
 
   // Unlock AudioContext on first click so new-order alarm can play (browser policy)
   useEffect(() => {
@@ -464,12 +466,14 @@ export default function AdminOrdersPage() {
     if (newPending.length === 0) return;
     stopAlarmRef.current?.();
     stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
-    // Alarm plays until user presses Spacebar to stop (see keydown listener below)
+    setAlarmActive(true);
+    // Alarm plays until the user taps the screen or presses Spacebar (see listeners below)
   }, [orders, useApi]);
 
   const stopNewOrderAlarm = () => {
     stopAlarmRef.current?.();
     stopAlarmRef.current = null;
+    setAlarmActive(false);
   };
 
   /** Play one phone-ring cycle so staff can verify the speaker/alarm works. */
@@ -496,7 +500,8 @@ export default function AdminOrdersPage() {
     }
   };
 
-  // Stop the new-order alarm when user presses Spacebar
+  // Stop the new-order alarm on a Spacebar press (laptop) or a tap anywhere (tablet).
+  // pointerdown covers touch as well as mouse, so one tap silences the alarm.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -506,8 +511,15 @@ export default function AdminOrdersPage() {
         if (!isInput) e.preventDefault();
       }
     };
+    const onPointerDown = () => {
+      stopNewOrderAlarm();
+    };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
   }, []);
 
   const handlePrintTicket = (order: PlacedOrder) => {
@@ -712,6 +724,37 @@ export default function AdminOrdersPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* New-order alarm indicator — tap anywhere (or press Spacebar) to silence */}
+      <div
+        className={`fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-200 ease-out motion-reduce:transition-none ${
+          alarmActive ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+        }`}
+        role={alarmActive ? "alert" : undefined}
+        aria-hidden={!alarmActive}
+      >
+        <div
+          className="mx-4 w-full max-w-xs rounded-2xl bg-white px-6 py-7 text-center shadow-2xl"
+          style={{ border: `2px solid ${GOLD}` }}
+        >
+          <div
+            className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full"
+            style={{ backgroundColor: "rgba(232,168,56,0.15)" }}
+          >
+            <Bell className="size-7" style={{ color: ESPRESSO }} />
+          </div>
+          <p
+            className="text-xl font-bold uppercase tracking-wide"
+            style={{ color: ESPRESSO, fontFamily: "'Oswald', sans-serif" }}
+          >
+            New order
+          </p>
+          <p className="mt-2 flex items-center justify-center gap-2 text-sm" style={{ color: "#6B7280" }}>
+            <span className="size-2 rounded-full animate-pulse" style={{ backgroundColor: GOLD }} />
+            Tap anywhere to silence
+          </p>
+        </div>
       </div>
 
       {/* Print ticket modal — only the ticket content is visible when printing */}

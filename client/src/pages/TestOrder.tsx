@@ -199,8 +199,8 @@ export default function TestOrder() {
       });
       toast.success(
         source === "phone"
-          ? "Test PHONE order added (no Clover print, no SMS). Check Order Management — phone alarm will play; press Spacebar to silence."
-          : "Test order added. Check Order Management — alarm will play; press Spacebar to silence. Receipt should print on Clover."
+          ? "Test PHONE order added (no Clover print, no SMS). Check Order Management — phone alarm will play; tap the screen (or press Spacebar) to silence."
+          : "Test order added. Check Order Management — alarm will play; tap the screen (or press Spacebar) to silence. Receipt should print on Clover."
       );
     } catch (e) {
       toast.error("Failed to add test order");
@@ -283,7 +283,7 @@ export default function TestOrder() {
             Test order
           </h1>
           <p className="text-sm text-gray-600 mb-4">
-            Build a custom test order. It will show in Order Management, trigger the alarm (Spacebar to silence), and print on Clover when configured.
+            Build a custom test order. It will show in Order Management, trigger the alarm (tap the screen or press Spacebar to silence), and print on Clover when configured.
           </p>
           {useApi && (
             <p className="text-xs text-green-600 mb-4">

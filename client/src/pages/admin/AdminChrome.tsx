@@ -43,7 +43,7 @@ export function AdminChrome({ onLogout }: { onLogout: () => void }) {
           </h1>
           {isOrders && (
             <span className="text-xs text-white/70 hidden sm:inline" title="When the new-order alarm is playing">
-              (Spacebar to silence)
+              (Tap screen or press Spacebar to silence)
             </span>
           )}
         </div>
