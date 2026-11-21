@@ -256,6 +256,7 @@ export const menuCategories: MenuCategory[] = [
     items: [
       { name: "Pico de Gallo (4oz)", price: 2.00 },
       { name: "Pico de Gallo (16oz)", price: 8.00 },
+      { name: "Guacamole (4oz)", price: 3.00 },
       { name: "Guacamole (16oz)", price: 12.00 },
       { name: "Side of Jalapenos", price: 2.00 },
       { name: "Sour Cream (4oz)", price: 2.00 },
