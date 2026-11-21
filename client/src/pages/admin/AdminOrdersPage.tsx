@@ -32,7 +32,9 @@ function startNewOrderAlarm(ctx: AudioContext | null | undefined): () => void {
     // A freshly created context starts "suspended" (browser autoplay policy)
     // and would be silent — resume it. Allowed because the user has gestured
     // (e.g. pressed Enter to log in) at some point in the session.
-    if (audioContext.state === "suspended") void audioContext.resume();
+    // Tablets and phones report "suspended" or "interrupted" after the screen locks
+    // or another app takes audio focus — resume whenever it isn't running.
+    if (audioContext.state !== "running") void audioContext.resume();
     gainNode = audioContext.createGain();
     gainNode.connect(audioContext.destination);
     gainNode.gain.value = 0.25;
@@ -407,29 +409,55 @@ export default function AdminOrdersPage() {
   const stopAlarmRef = useRef<(() => void) | null>(null);
   /** Drives the on-screen alarm indicator; set when the alarm starts, cleared when silenced */
   const [alarmActive, setAlarmActive] = useState(false);
+  /** True only when the AudioContext is actually running, i.e. the alarm will be audible */
+  const [audioRunning, setAudioRunning] = useState(false);
+  /** One wake-up tap per alarm, so a device that refuses to resume can still be silenced */
+  const [wakeTried, setWakeTried] = useState(false);
+  const wakeTriedRef = useRef(false);
 
-  // Unlock AudioContext on first click so new-order alarm can play (browser policy)
-  useEffect(() => {
-    const unlock = () => {
-      try {
-        if (!audioContextRef.current || audioContextRef.current.state === "closed") {
-          const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-          audioContextRef.current = ctx;
-          void ctx.resume();
-        }
-      } catch {
-        // ignore
+  /**
+   * Create/resume the shared AudioContext (browser autoplay policy).
+   * Must run inside a user gesture the first time, and again after the device screen
+   * or browser tab puts audio to sleep — that is why it is called on every tap.
+   */
+  const resumeAudio = useCallback(() => {
+    try {
+      let ctx = audioContextRef.current;
+      if (!ctx || ctx.state === "closed") {
+        const created = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        created.onstatechange = () => setAudioRunning(created.state === "running");
+        audioContextRef.current = created;
+        ctx = created;
       }
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("keydown", unlock);
-    };
-    document.addEventListener("click", unlock, { once: true });
-    document.addEventListener("keydown", unlock, { once: true });
-    return () => {
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("keydown", unlock);
-    };
+      if (ctx.state === "running") {
+        setAudioRunning(true);
+        return;
+      }
+      const target = ctx;
+      void target
+        .resume()
+        .then(() => setAudioRunning(target.state === "running"))
+        .catch(() => setAudioRunning(false));
+    } catch {
+      setAudioRunning(false);
+    }
   }, []);
+
+  // Re-arm audio on any interaction and whenever the dashboard comes back to the
+  // foreground, so an alarm arriving after the tablet slept is still audible.
+  useEffect(() => {
+    window.addEventListener("pointerdown", resumeAudio);
+    window.addEventListener("keydown", resumeAudio);
+    window.addEventListener("focus", resumeAudio);
+    document.addEventListener("visibilitychange", resumeAudio);
+    resumeAudio();
+    return () => {
+      window.removeEventListener("pointerdown", resumeAudio);
+      window.removeEventListener("keydown", resumeAudio);
+      window.removeEventListener("focus", resumeAudio);
+      document.removeEventListener("visibilitychange", resumeAudio);
+    };
+  }, [resumeAudio]);
 
   /** Open the receipt in a new window and trigger print (same as "Print ticket" button) */
   const openTicketPrintWindow = (order: PlacedOrder) => {
@@ -465,25 +493,29 @@ export default function AdminOrdersPage() {
     const newPending = newOrders.filter((o) => o.status === "pending");
     if (newPending.length === 0) return;
     stopAlarmRef.current?.();
+    resumeAudio();
     stopAlarmRef.current = startNewOrderAlarm(audioContextRef.current);
+    setAudioRunning(audioContextRef.current?.state === "running");
+    wakeTriedRef.current = false;
+    setWakeTried(false);
     setAlarmActive(true);
     // Alarm plays until the user taps the screen or presses Spacebar (see listeners below)
-  }, [orders, useApi]);
+  }, [orders, useApi, resumeAudio]);
 
   const stopNewOrderAlarm = () => {
     stopAlarmRef.current?.();
     stopAlarmRef.current = null;
+    wakeTriedRef.current = false;
+    setWakeTried(false);
     setAlarmActive(false);
   };
 
   /** Play one phone-ring cycle so staff can verify the speaker/alarm works. */
   const handleTestSound = () => {
     try {
-      if (!audioContextRef.current || audioContextRef.current.state === "closed") {
-        audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      }
+      resumeAudio();
       const ctx = audioContextRef.current;
-      void ctx.resume();
+      if (!ctx) throw new Error("AudioContext unavailable");
       stopAlarmRef.current?.();
       const stop = startNewOrderAlarm(ctx);
       setTimeout(stop, 2600);
@@ -491,7 +523,7 @@ export default function AdminOrdersPage() {
         setSoundTestResult(
           ctx.state === "running"
             ? `Audio context running — if you heard a phone ring, sound works. Nothing? Check the tab isn't muted (right-click the tab) and system volume.`
-            : `Audio context is ${ctx.state} — click anywhere on the page once, then test again.`
+            : `Audio is ${ctx.state} — tap anywhere on the page once, then test again.`
         );
         setTimeout(() => setSoundTestResult(null), 8000);
       }, 2700);
@@ -500,8 +532,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  // Stop the new-order alarm on a Spacebar press (laptop) or a tap anywhere (tablet).
-  // pointerdown covers touch as well as mouse, so one tap silences the alarm.
+  // Spacebar silences the alarm on a laptop.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -511,16 +542,25 @@ export default function AdminOrdersPage() {
         if (!isInput) e.preventDefault();
       }
     };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // A tap anywhere silences the alarm. If the tablet's audio was asleep (screen locked,
+  // tab backgrounded) the first tap only re-arms sound, so the alarm is actually audible.
+  useEffect(() => {
     const onPointerDown = () => {
+      if (alarmActive && !audioRunning && !wakeTriedRef.current) {
+        wakeTriedRef.current = true;
+        setWakeTried(true);
+        resumeAudio();
+        return;
+      }
       stopNewOrderAlarm();
     };
-    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, []);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [alarmActive, audioRunning, resumeAudio]);
 
   const handlePrintTicket = (order: PlacedOrder) => {
     setOrderToPrint(order);
@@ -752,7 +792,7 @@ export default function AdminOrdersPage() {
           </p>
           <p className="mt-2 flex items-center justify-center gap-2 text-sm" style={{ color: "#6B7280" }}>
             <span className="size-2 rounded-full animate-pulse" style={{ backgroundColor: GOLD }} />
-            Tap anywhere to silence
+            {audioRunning ? "Tap anywhere to silence" : wakeTried ? "Sound is off — tap to silence" : "Tap to turn sound on"}
           </p>
         </div>
       </div>
