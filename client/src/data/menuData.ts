@@ -42,7 +42,7 @@ export const menuCategories: MenuCategory[] = [
       {
         name: "Margarita's Parrillada",
         price: 32,
-        note: "Chicken, steak, chorizo, shrimp, grilled jalapenos & green onions, fried cheese, rice & beans on the side",
+        note: "Chicken, steak, chorizo, shrimp, grilled jalapenos & green onions, fried cheese, rice & beans, guacamole, pico de gallo & sour cream on the side",
       },
     ],
   },
