@@ -178,7 +178,7 @@ export const categoryOrderOptions: Record<string, CategoryOrderOptions> = {
     addExtras: [],
     itemOverrides: {
       "Carne Asada": {
-        removeIngredients: ["Grilled Jalapenos", "Grilled Onions"],
+        removeIngredients: ["Grilled Jalapenos", "Grilled Green Onions"],
       },
       Fajitas: {
         removeIngredients: ["Grilled Peppers", "Grilled Onions"],

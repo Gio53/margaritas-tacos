@@ -32,7 +32,7 @@ export const menuCategories: MenuCategory[] = [
       {
         name: "Carne Asada",
         price: 20,
-        note: "Grilled jalapenos, grilled onions, rice & beans, pico de gallo, guacamole, 3 corn tortillas on the side",
+        note: "Grilled jalapenos, grilled green onions, rice & beans, pico de gallo, guacamole, 3 corn tortillas on the side",
       },
       {
         name: "Fajitas",
@@ -42,7 +42,7 @@ export const menuCategories: MenuCategory[] = [
       {
         name: "Margarita's Parrillada",
         price: 32,
-        note: "Chicken, steak, chorizo, shrimp, grilled jalapenos & onions, fried cheese, rice & beans on the side",
+        note: "Chicken, steak, chorizo, shrimp, grilled jalapenos & green onions, fried cheese, rice & beans on the side",
       },
     ],
   },
